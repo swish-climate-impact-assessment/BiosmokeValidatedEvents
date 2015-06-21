@@ -1,0 +1,56 @@
+#+TITLE:bio events 
+#+AUTHOR: Ivan Hanigan
+#+email: ivan.hanigan@anu.edu.au
+#+LaTeX_CLASS: article
+#+LaTeX_CLASS_OPTIONS: [a4paper]
+#+LATEX: \tableofcontents
+-----
+
+* Methods
+*** COMMENT methods-code
+#+name:methods
+#+begin_src R :session *R* :tangle code/methods.R :exports none :eval no
+  #### name:methods ####
+  library(rpostgrestools)
+  ch <- connect2postgres2("data_inventory_hanigan_dev3")
+  
+  dbSendQuery(ch, "UPDATE dataset
+  SET method_steps='
+  Step 1: acquire the smoke pollution data from State Governments.
+  Step 2: load into a postgres database.
+  
+  See /media/Seagate Expansion Drive/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures/event validation/impute
+  which I need to compare with
+  /media/Seagate Expansion Drive/ivan_acer/projects/1.302 Biomass/analysis/exposures/event validation/versions/2012-01-12/impute
+  
+  '
+  WHERE shortname = 'bio_validated_bushfire_events';
+  ")
+  
+#+end_src
+
+
+* COMMENT get-data-delphe-code
+#+name:get-data-delphe
+#+begin_src R :session *R* :tangle src/get-data-delphe.r :exports none :eval no
+  ################################################################
+  # name:get-data-delphe
+  require(swishdbtools)
+  ch <- connect2postgres2("delphe")
+  
+  tbls <- c("bio_events.tblreferences",
+  "bio_events.tblevents",
+  "bio_events.dust_event_records",
+  "bio_events.dust_event_records2")
+  dir()
+  for(tb in tbls)
+    {
+      #tb  <- tbls[1]
+      print(tb)
+      df <- sql_subset(ch, tb, eval = T)
+      #str(df)
+      write.csv(df, paste(tb, ".csv", sep = ""), row.names = FALSE, na = "")
+    }
+  
+#+end_src
+
