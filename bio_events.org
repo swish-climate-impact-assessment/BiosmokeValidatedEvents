@@ -5,37 +5,116 @@
 #+LaTeX_CLASS_OPTIONS: [a4paper]
 #+LATEX: \tableofcontents
 -----
+http://www.biomedcentral.com/bmcresnotes/authors/instructions/datanote
+~/Dropbox/tools/LaTeX templates/Biomed/biomed_2015/bmc_template
+* Compared
+*** COMMENT compared-code
+#+name:compared
+#+begin_src R :session *shell* :tangle no :exports none :eval no
+  #### name:compared ####
+  # One archive is 
+  dir1 <- "/media/external/ivan_acer/projects/1.302 Biomass/analysis/exposures/event validation"
+  # the other is 
+  dir2 <- "/media/external/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures/event validation"
+  
+  dir(file.path(dir1, "metadata"))
+  dir(dir2)
+#+end_src
 
-* Methods
+* metadata
+** Methods
 *** COMMENT methods-code
 #+name:methods
-#+begin_src R :session *R* :tangle code/methods.R :exports none :eval no
+#+begin_src R :session *R* :tangle no :exports none :eval yes
   #### name:methods ####
+  if(exists('ch'))   dbDisconnect(ch)
+  etl <- "load"
   library(rpostgrestools)
-  ch <- connect2postgres2("data_inventory_hanigan_dev3")
+  ch <- connect2postgres2("data_inventory_hanigan_dev4")
+  setwd("~/data/bio_validated_bushfire_events")
+  dir()
+  dset <- "bio_validated_bushfire_events"
   
-  dbSendQuery(ch, "UPDATE dataset
-  SET method_steps='
-  Step 1: acquire the smoke pollution data from State Governments.
-  Step 2: load into a postgres database.
+  pid <- dbGetQuery(ch,
+  #cat(                  
+  sprintf("select project_id
+  from dataset
+  where shortname = '%s'",
+                    dset
+                    )
+  )
+  pid
   
-  See /media/Seagate Expansion Drive/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures/event validation/impute
-  which I need to compare with
-  /media/Seagate Expansion Drive/ivan_acer/projects/1.302 Biomass/analysis/exposures/event validation/versions/2012-01-12/impute
+  prj <- dbGetQuery(ch,
+  sprintf("select *
+  from project
+  where id = %s",
+                    pid
+             )
+  )
+  prj <- as.matrix(t(prj))
+  if(etl == "extract"){
+  write.csv(prj, "project.csv", row.names=T)
+  } 
+  #### edit this ####
+  prj  <- read.csv("project.csv", stringsAsFactor = F)
+  prj 
+  prj <- prj[-which(prj[,2] == ''),]
+  input <- prj[,2]
+  nums <- as.numeric(input)
   
-  '
-  WHERE shortname = 'bio_validated_bushfire_events';
-  ")
+  replace  <-   which(is.na(nums))
+  dont_replace  <-  which(!is.na(nums))
+  
+  rplace <- gsub("NA", "", paste("'", paste(input[replace], "'", sep = ""), sep = ""))
+  rplace_df <- as.data.frame(rbind(
+  cbind(dont_replace, input[dont_replace])
+        ,
+  cbind(replace, rplace)
+  ))
+  
+  rplace_df <- cbind(rplace_df, prj[,1])
+  txt <- paste(apply(rplace_df[,3:2], 1, paste, collapse = " = "), sep = "", collapse = ", ")
+  cat(txt)
+  # TODO don;t do empty strings  
+  dbSendQuery(ch,
+  #cat(            
+  sprintf("UPDATE project
+     SET %s
+   WHERE id = %s",  txt, pid)
+  )
+  
+  ## UPDATE project
+  ##    SET id=?, title=?, abstract=?, studyareadescription=?, personnel=?, 
+  ##        funding=?, personnel_owner_organisationname=?, personnel_data_owner=?
+  ##  WHERE <condition>;
+  
+  
+  ## dbSendQuery(ch, "UPDATE dataset
+  ## SET method_steps='
+  ## Step 1: acquire the smoke pollution data from State Governments.
+  ## Step 2: load into a postgres database.
+  
+  ## See /media/Seagate Expansion Drive/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures/event validation/impute
+  ## which I need to compare with
+  ## /media/Seagate Expansion Drive/ivan_acer/projects/1.302 Biomass/analysis/exposures/event validation/versions/2012-01-12/impute
+  
+  ## '
+  ## WHERE shortname = 'bio_validated_bushfire_events';
+  ## ")
   
 #+end_src
+
+#+RESULTS: methods
 
 
 * COMMENT get-data-delphe-code
 #+name:get-data-delphe
-#+begin_src R :session *R* :tangle src/get-data-delphe.r :exports none :eval no
+#+begin_src R :session *R* :tangle no :exports none :eval no
   ################################################################
   # name:get-data-delphe
   require(swishdbtools)
+
   ch <- connect2postgres2("delphe")
   
   tbls <- c("bio_events.tblreferences",
