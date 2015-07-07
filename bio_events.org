@@ -5,22 +5,49 @@
 #+LaTeX_CLASS_OPTIONS: [a4paper]
 #+LATEX: \tableofcontents
 -----
+
+* setup
+- The idea is to house a complete data and document compendium as an R package
+- Using the template from https://github.com/jhollist/manuscriptPackage
+
+* perhaps submit a data descriptor paper?
 http://www.biomedcentral.com/bmcresnotes/authors/instructions/datanote
 ~/Dropbox/tools/LaTeX templates/Biomed/biomed_2015/bmc_template
-* Compared
-*** COMMENT compared-code
-#+name:compared
-#+begin_src R :session *shell* :tangle no :exports none :eval no
-  #### name:compared ####
-  # One archive is 
-  dir1 <- "/media/external/ivan_acer/projects/1.302 Biomass/analysis/exposures/event validation"
-  # the other is 
-  dir2 <- "/media/external/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures/event validation"
+* COMMENT conceptual-diagram-code
+#+name:conceptual-diagram
+#+begin_src R :session *R* :tangle inst/doc/conceptual-diagram.R :exports none :eval yes
+  #### name:conceptual-diagram ####
+  setwd("~/data/BiosmokeValidatedEvents/inst/doc")
+  library(disentangle)
+  library(stringr)
+  dat <- read.csv("conceptual-diagram.csv", stringsAsFactor = F)
+  str(dat)
+  flowchart <- newnode_df(
+    indat = dat
+    ,
+    names_col = "name"
+    ,
+    in_col = "inputs"
+    ,
+    out_col = "outputs"
+    ,
+    clusters_col= "group"
+    ,
+    desc_col="description"
+    )
   
-  dir(file.path(dir1, "metadata"))
-  dir(dir2)
+  sink("fileTransformations.dot")
+  cat(flowchart)
+  sink()
+  system("dot -Tpdf fileTransformations.dot -o fileTransformations.pdf")
+  
 #+end_src
 
+#+RESULTS: conceptual-diagram
+: 0
+
+* reference review
+media/external/u3171954-H/My%20Documents/projects/1.302%20Biomass/analysis/exposures/event%20validation/Archive_20100609/REFS
 * metadata
 ** Methods
 *** COMMENT methods-code

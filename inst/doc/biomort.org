@@ -1,0 +1,2369 @@
+#+TITLE:biomort 
+#+AUTHOR: Ivan Hanigan
+#+email: ivan.hanigan@anu.edu.au
+#+LaTeX_CLASS: article
+#+LaTeX_CLASS_OPTIONS: [a4paper]
+#+LATEX: \tableofcontents
+-----
+
+*** biomort extraction script (full of details)
+head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extraction_overview.r
+**** head
+#+begin_src R :session *R* :tangle no :exports none :eval no
+  
+  #################################################################
+  # N:/NCEPH_Data/NCEPH_Datasets/Restricted/Restricted_Data_Requests/AMD/2008/Hanigan200804/extraction/extraction_overview.r               
+  # author:
+  # ihanigan
+  # date:
+  # 2010-06-16
+  # description:
+  # a project of great importance
+  #################################################################
+  
+  # changelog
+  Sys.Date()
+  # 2011-04-08    alter table pollution.d to make sure it is up to date.  see newnode =full list of dates.
+  # 2011-03-08    modify flu epidemic coding to include 0,1; modify lfs_pm25_lag0 to be null when pm25_lag0 is null
+  #                               new work uses RpgSQL and dbGetQuery rather than RODBC and sqlQuery
+  # 2010-07-08    Add code to calculate 30 day mov avg and event pm in node calc_event_pm (archived version in 20100707 has most of the changes 
+          # except those to get_data in which I change the variable selection query to avoid *event and *no_event.
+  # 2010-07-01    change get_data to include age groups and then modify model code (load) to subset on R server to avoid too many files
+  # 2010-06-22    modifications to get_data so that sex is included, then need to modify analysis code to subset those.
+  # 2010-06-16    archived version of original, make room for new system of transformations tracker
+  # 15/3/2010     all operations run directly from this overview script.
+  # 15/1/2010             original 
+  
+  
+  source("i:/my dropbox/tools/transformations.r")
+  
+  
+  file.remove(dir('run',full.names=T))
+  
+  # newnode(dsc = "", ttype = c("load", "clean", "functions", 
+  # "do"), i = NA, o = "", notes = "", code = NA, dontshow = NA, 
+  # append = T) 
+  
+  
+#+end_src
+**** func
+#+begin_src R :session *R* :tangle no :exports none :eval no
+  
+  #################################################################
+  newnode(dsc='functions',
+  append=F,ttype='functions',
+  o='functions',
+  code="
+  # source(dir('run_files',pattern='functions',full.names=T))
+  # library(RODBC)
+  # ch=odbcConnect('delphe')
+  # res=odbcConnect('restricted_health')
+  # bio=odbcConnect('bio')
+  require('sqldf')
+  source('i:/my dropbox/tools/postIDW.r')
+  source('i:/my dropbox/tools/load2postgres.r')
+  source('i:/my dropbox/tools/connectDelphe.r')
+  ch <- connectDelphe()
+  
+  ######
+  # NB subset by age in analysis code on R server rather than on postgres
+  agegrps=c('allages','65plus','under65','under1')
+   agegrp_code=c('t1.dthage >-1',
+    't1.dthage >= 65 and t1.dthage <200',
+    't1.dthage < 65 or (t1.dthage >=200 and t1.dthage <999)',
+    't1.dthage >=202 and t1.dthage <=211')
+  ######
+    
+  cities=c('PERTH','Sydney','Newcastle','Illawarra')
+  stes=c('wa','nsw','nsw','nsw')
+  # mindates=c('1997-05-23','1996-05-07','1996-06-19','1998-03-01') # use full dates in stationdate tables
+  
+  diseases=c('allcause','resp','cvd','sids')
+  
+  codlists=c(
+  '(cod < ') or (cod Between ' and ')',
+  '(cod Between ' and ') or ((cod Between ' and ' or cod Like ' or cod Like '  or cod Like ' or cod Like ') and (cod not between ' and ' ) )',
+  '((cod Between ' and ') or (((cod Between ' and ')  and  (cod not Like ' or cod not like ')  and  (cod not Like '  or cod not Like ')  and  (cod not Like '  or cod not Like ')  and  (cod not Like ' or cod not Like  ')  and  (cod not Like ' or cod not Like ')  and  (cod not Like ' or cod not Like ' ) )  or  (  (cod like ' or cod like ')  and   (cod not Like ' or cod not like ') ) or  (  cod Like ' or cod like '    or cod Like ' or cod like '    or cod Like ' or cod like '    or cod Like ' or cod like ' )))',
+  '(cod like ' or cod like ') or (cod like ' or cod like ')')
+  
+  
+  
+  pm_event_types=c('bushfire','dust','nonbiomassfire','nonbiomassnonfire','possiblebiomass','prescribedburn','woodsmoke')
+  
+  pm_grps=matrix(c('pm10','pm25','10','5'),2,2)
+  
+  
+  ")
+#+end_src
+**** params
+#+begin_src R :session *R* :tangle no :exports none :eval no
+  
+  #################################################################
+  newnode(dsc='params',
+  ttype='do',
+  i=c('age','city','disease'),
+  o='params',
+  code="
+  ")
+#+end_src
+**** spatial
+#+begin_src R :session *R* :tangle no :exports none :eval no
+  
+  #################################################################
+  newnode(dsc='get the sla codes of our study sites',
+  ttype='load',
+  i='-d bio health.study_slas',
+  o='biomass_study_slas',
+  notes="task: document these, compare with geoffs
+  work is M:/Environmental_Health/Bushfires/Locations/study_SLAs.r')",
+  code="
+  biomass_study_slas=sqlQuery(bio,'select * from health.study_slas')
+  sqlSave(res,biomass_study_slas)
+  ")
+  
+  #################################################################
+  #orig mortality
+  newnode(dsc='orig mortality', ttype='load',
+  notes="could change sydney here and save some effort later?",
+  i=c('-d restricted data','biomass_study_slas'),
+  o=c('amd.hanigan20090512_biomass'),
+  code="
+  #J:\\NCEPH_Datasets\\Restricted\\Restricted_Data_Requests\\AMD\\2008\\Hanigan200804\\extraction\\versions\\2009\\extract_biomass_mortality.r
+  
+  # get the all cause (non-external) data by unit records
+  sqlQuery(ch,'CREATE OR REPLACE VIEW amd.Hanigan20090512_biomass AS 
+  
+  SELECT biomass_study_slas.*,  amd.unit_records.*,
+          t1.diagnosis_desc as icd9_name, t2.diagnosis_desc as icd10_name
+     FROM  ((biomass_study_slas left join amd.unit_records on  
+           (amd.unit_records.regyy = (biomass_study_slas.year+1))
+     and (substring(cast(amd.unit_records.ures9 as text),1,1) || substring(cast(amd.unit_records.ures9 as text),6,9) 
+     = cast(biomass_study_slas.sla_concorded as text))) 
+     left join amd.icd9_nmd as t1 on (cod = cast(t1.nmd_code as text))) 
+     left join amd.icd10_nmd as t2 on (cod = t2.nmd_code )
+     where (cod < ' or (cod between ' and '))
+           and regyy>1993 and (dthyy>1993 and dthyy<9999 and studysite not like ' and studysite not like ');
+  ')
+  ")
+  
+  #################################################################
+  #mortality
+  newnode(dsc='some qc checks', ttype='load',
+  i= 'amd.hanigan20090512_biomass',
+  o=c('qc/total_per_year.jpg'),
+  code="
+  
+  dir.create('qc')
+  
+  d= sqlQuery(res,'SELECT studysite,  dthyy,  count(to_date(dthyy || \'-\' || dthmm || \'-\' || dthdd, \'YYYY-MM-DD\')), count(*)
+    FROM amd.hanigan20090512_biomass
+          group by studysite, dthyy
+          order by studysite, dthyy ;')
+   
+  d
+  
+  towns=names(summary(d$studysite) )
+  towns
+  
+  plot(d$dthyy[d$studysite==towns[1]], d$count[d$studysite==towns[1]],type='l',ylim=c(0,max(d$count))) 
+  
+  for(i in 1:length(towns)){
+          lines(d$dthyy[d$studysite==towns[i]], d$count[d$studysite==towns[i]],col=i)
+          }
+  
+  savePlot('qc/total_per_year.jpg',type=c('jpg'))
+  dev.off()       
+          
+  # check cod range
+  #write.csv(sqlQuery(ch,'SELECT cod, icd9_name, icd10_name, count(*)
+  #  FROM amd.hanigan20090512_biomass
+  #       group by cod ,  icd9_name, icd10_name
+  #       order by cod'),'qc/qc_cod_ranges.csv')
+  #
+  
+  # check date range
+  #write.csv(sqlQuery(ch,'SELECT dthdate
+  #  FROM amd.hanigan20090512_biomass
+  #  order by dthdate
+  #  '),'qc/qc_date_ranges.csv')
+  #
+  # why funny dates
+  #sqlQuery(ch,'SELECT *
+  #  FROM amd.hanigan20090512_biomass
+  #  where cast(dthdate as text) like \'1000%\'
+  #  ')
+  #  
+   # check numbers in cod seem ok ie heart attack biggest?
+  #write.csv(sqlQuery(ch,'SELECT cod, icd9_name, icd10_name, count(*)
+  #  FROM amd.hanigan20090512_biomass
+  #       group by cod ,  icd9_name, icd10_name
+  #       order by count desc
+  #       limit 25;'),'qc/qc_top25_cod.csv')
+          
+  # check numbers in agegrps seem ok ie older biggest?
+  #write.csv(
+  # sqlQuery(ch,'SELECT t2.agegp, count(*)
+    # FROM amd.hanigan20090512_biomass t1 left  join agecats t2 on t1.dthage=t2.dthage
+          # group by t2.agegp
+          # order by t2.agegp desc;')
+          # #,'qc/qc_agegp.csv')
+   
+   
+  # check against previous work in access
+  #I:\\User Requests\\Restricted\\AMD\\2008\\Hanigan200804\\extraction\\BushfireMort.mdb
+  #query biomass_unitrecords_counts
+  #sqlQuery(ch,'SELECT regyy, count(*)
+  #  FROM amd.hanigan20090512_biomass
+  #       group by regyy
+  #       order by regyy;') 
+  # 
+  #biomort=odbcConnectAccess('BushfireMort.mdb')
+  #
+  #
+  #d=sqlQuery(biomort,'SELECT [Registrations 2003].NCEPH_Autonum, [Registrations 2003].Regst, [Registrations 2003].Regmm, [Registrations 2003].Regyy, [Registrations 2003].Sex, [Registrations 2003].Dthage, [Registrations 2003].AgeGp, Left([Registrations 2003].[Ures9 (asgc2002)],1) AS UresS, [ASGC 2002].Code AS Ures, Left([CODE],3) AS SD_CODE, [Registrations 2003].Duresyy, [Registrations 2003].Occ, [Registrations 2003].Bpl90 AS Bpl, [Registrations 2003].Mstatus AS MStatus, [Registrations 2003].Issue, [Registrations 2003].Dthyy, [Registrations 2003].Dthmm, [Registrations 2003].Dthdd, ICD10.ICD10 AS ICD_CODE, ICD10.NMD_CODE, asgc2002.studysite, asgc2002.Expr1
+  #FROM (([Registrations 2003] LEFT JOIN ICD10 ON [Registrations 2003].[Cod (ICD10)] = ICD10.NMD_CODE) LEFT JOIN [ASGC 2002] ON [Registrations 2003].[Ures9 (asgc2002)] = [ASGC 2002].Code) LEFT JOIN asgc2002 ON [ASGC 2002].Code = asgc2002.sla9
+  #WHERE ((([Registrations 2003].Dthyy)>1993 And ([Registrations 2003].Dthyy)<9999) AND ((ICD10.NMD_CODE) Between \'A%\' And \'S%\' Or (ICD10.NMD_CODE)=\'Z354\' Or (ICD10.NMD_CODE)=\'Z355\' Or (ICD10.NMD_CODE)=\'Z358\') AND ((asgc2002.Expr1) Is Not Null));')
+  #
+  #nrow(d)
+  #write.csv(d,'qc/2003check.csv')
+  
+  #load_newtable_to_postgres('qc/2003check.csv',schema='amd',tablename='check03',pk='ID',header=TRUE,printcopy=TRUE,sheetname='Sheet1',withoids=FALSE,pguser='ihanigan',db='restricted_health',ip='130.56.102.30')
+  #shell('type sqlquery.txt ' |  Files\\PostgreSQL\\8.3\\bin\\psql\\' -h 130.56.102.30 -U ihanigan -d restricted_health') 
+  #
+  #SELECT * into amd.check03_2
+  #  FROM amd.hanigan20090512_biomass
+  #  where regyy=2003;
+  #
+  #SELECT t1.*,t2.*
+  #  FROM amd.check96_2 t1 left join amd.check03 t2
+  #  on (t1.regyy=t2.regyy) and t1.nceph_autonum=t2.nceph_autonum 
+  #  where t2.nceph_autonum is null;
+  #
+  #
+  ")
+  
+  #################################################################
+  newnode(dsc='transfer_mortality', ttype='load', 
+  i='amd.hanigan20090512_biomass',
+  o='-d delphe -t confidentialised_health.hanigan20090512_biomass',
+  code="
+  
+  write.csv(sqlQuery(res,'select  amd.hanigan20090512_biomass.rownames, studysite, year, name_concorded, sla_concorded , nceph_autonum, regst, regmm, regyy, sex, amd.hanigan20090512_biomass.dthage, agecats.agegp,    ures9, ures9unmatched, duresyy,  occ,  bpl ,mstatus ,issue, dthyy ,dthmm, dthdd,cast(dthyy   || \'-\' || dthmm || \'-\' || dthdd as date) as dthdate,  cod from amd.hanigan20090512_biomass left join agecats on amd.hanigan20090512_biomass.dthage=agecats.dthage'),'hanigan20090512_biomass.csv',row.names=F)
+  
+  load2postgres('hanigan20090512_biomass.csv',schema='confidentialised_health',tablename='hanigan20090512_biomass',pk='nceph_autonum, regyy',header=TRUE,printcopy=TRUE,sheetname='Sheet1',withoids=FALSE,pguser='ihanigan',db='delphe',ip='130.56.102.30',datecol = 'dthdate')
+  #
+  shell('sqlquery.txt')
+  
+  cat('type sqlquery.txt \'hanigan20090512_biomass.csv\' | \'C:\\Program Files\\PostgreSQL\\8.3\\bin\\psql\' -h 130.56.102.30 -U ihanigan -d delphe')
+  
+  grant_access('confidentialised_health.hanigan20090512_biomass','ivan_hanigan',host='super_ivan')
+  
+  ") 
+  
+  #################################################################
+  newnode(dsc='qc_transferred_mortality', ttype='load',
+  i=c('-d delphe -t confidentialised_health.hanigan20090512_biomass'),
+  o=c('qc_transferred_mortality.jpg'),
+  code="
+  
+  dislab=diseases[2]
+  dis=codlists[2]
+  
+  par(mfrow=c(2,2))
+  for( city in cities){
+  qc=sqlQuery(ch,
+    # cat(
+    paste('select studysite, dthdate, count(*)
+    from confidentialised_health.hanigan20090512_biomass 
+    where studysite like \'',city,'\\%\' and (',dis,')
+    group by studysite, dthdate  
+    order by dthdate',sep='')
+    )
+  plot(qc$dthdate,qc$count,type='l',col='grey',main=paste(city,dislab))
+  lines(lowess(qc$count~qc$dthdate,f=.05))
+  
+  }
+  
+  savePlot('qc/qc_transferred_mortality_dly.jpg',type=c('jpg'))
+  dev.off()
+  
+  par(mfrow=c(2,2))
+  for( city in cities){
+  
+  qc=sqlQuery(ch,
+    # cat(
+    paste('select case when studysite like \'Syd%\' then \'Sydney\' else studysite end as studysite, dthyy, count(*)
+    from confidentialised_health.hanigan20090512_biomass 
+    where case when studysite like \'Syd%\' then \'Sydney\' else studysite end like \'',city,'\\%\' and (',dis,')
+    group by case when studysite like \'Syd%\' then \'Sydney\' else studysite end, dthyy  
+    order by case when studysite like \'Syd%\' then \'Sydney\' else studysite end, dthyy',sep='')
+    )
+    
+  plot(qc$dthyy,qc$count,type='l',col='darkgrey',main=paste(city,dislab),ylim=c(0,max(qc$count)))
+  points(qc$dthyy,qc$count,col='darkgrey',pch=16)
+  lines(lowess(qc$count~qc$dthyy,f=.5))
+  segments(1996.5,0,1996.5,max(qc$count),col='darkgrey')
+  segments(1998.5,0,1998.5,max(qc$count),col='darkgrey')
+  }
+  
+  savePlot('qc/qc_transferred_mortality_yly.jpg',type=c('jpg'))
+  dev.off()
+  
+  ")
+  
+  
+  ###########
+  newnode(dsc='RA', ttype='load',
+  i=c('pollution'),
+  o=c('bio_events.tblevents','bio_events.tblreferences','multiple eventtype checks\tI:/projects/1.302 Biomass/analysis/exposures/event validation/Manual Validation'),
+  code="
+  
+  ")
+  
+  
+  ###########
+  newnode(dsc='discriminate multiple types', ttype='load',
+  i='multiple eventtype checks',
+  o='single eventtypes'
+  )
+  
+  #combined pollutants
+  
+  newnode(dsc='combined pollutants',ttype='load',
+  o=c('combined pollutants'),
+  notes="
+  M:/Environmental_Health/Bushfires/Exposures
+  ")
+  
+  #imputed
+  newnode(dsc='imputed',ttype='load',
+  o=c('imputed'),
+  notes="I:/projects/1.302 Biomass/analysis/exposures/event validation/impute/load.r and todo.r'")
+  
+  #pollution
+  newnode(dsc='pollution', ttype='load',
+  note="missing script loc",
+  i=c('combined pollutants','imputed'),
+  o=c('pollution'),
+  code="
+  
+  ")
+  
+  #PM
+  
+  ###########
+  newnode(dsc='full list of dates', ttype='load',
+  i=c('pollution','bio_events.tblevents','bio_events.tblreferences'),
+  o=c('pollution.d'),
+  notes='TASK THIS SHOULD BE A DYNAMIC VIEW!
+  
+  joins the pollution and validated events, pulling out only those with >= 95% pm10 or pm2.5',
+  code="
+  
+  # orig joining of events and pollution was from work PC
+  # I:/projects/1.302 Biomass/analysis/exposures/event validation/impute/quality_control/do.r
+   
+  # This following is really ugly but gets the job done (by any means necessary)
+  # NB indexing the pollution tables and tblevents would speed up the extract.
+  # TASK THIS SHOULD BE A DYNAMIC VIEW!
+  
+  
+  dbSendUpdate(ch,'alter table pollution.d rename to d_20110408')
+  # NB this alters the view too so have to re run the whole process below.
+  # dbSendUpdate(ch,'drop table pollution.d cascade;') # does not exist??
+  
+  dbSendUpdate(ch,
+  # cat(
+  'select case when pm10.region is null then pm25.region else pm10.region end as region,
+          case when pm10.date is null then pm25.date else pm10.date end as date,  
+          case when pm10.eventtype is null then pm25.eventtype else pm10.eventtype end as eventtype, 
+          pm10.pctile as pm10pct, pm10.value as pm10,pm25.pctile as pm25pct, pm25.value as pm25
+  into pollution.d
+  from
+  (
+  SELECT \'pm10\' AS pollutant, 
+          pm10.region,pm10.date,pm10.pctile,pm10.pm10_av as value,
+          checked.eventtype,count(eventid)
+  FROM pollution.pm10_av_events_all_regions pm10
+  LEFT JOIN 
+          ( 
+          SELECT t1.date, t2.eventid, t2.refid, t2.eventid2, t2.eventtype, t2.place, t2.mindate, t2.maxdate, t2.burnareaha, t2.metconditions, t2.field3, t2.field5, t2.field7
+          FROM pollution.pm10_av_events_all_regions t1, 
+                  ( 
+                  SELECT tab1.eventid, tab1.refid, tab1.eventid2, tab1.eventtype, 
+                  case when tab1.place like \'Sydney%\' then \'Sydney\' else tab1.place end as place,
+                  tab1.place as place2,
+                  tab1.mindate, tab1.maxdate, tab1.burnareaha, tab1.metconditions, tab2.field3, tab2.field5, tab2.field7
+                  FROM bio_events.tblevents tab1
+                  JOIN bio_events.tblreferences tab2 ON tab1.refid = tab2.refid
+                  ) t2
+          WHERE (t1.date = t2.mindate 
+                  OR t1.date >= t2.mindate 
+                  AND t1.date <= t2.maxdate)
+          group by t1.date, t2.eventid, t2.refid, t2.eventid2, t2.eventtype, t2.place, t2.mindate, t2.maxdate, t2.burnareaha, t2.metconditions, t2.field3, t2.field5, t2.field7
+          ) checked 
+  ON pm10.date = checked.date 
+          AND pm10.region = checked.place
+  group by pm10.region,pm10.date,pm10.pctile,
+          checked.eventtype,pm10.pm10_av
+  ) pm10
+  full join
+  (
+  SELECT \'pm25\' AS pollutant, 
+          pm25.region,pm25.date,pm25.pctile,pm25.pm25_av as value,
+          checked.eventtype,count(eventid)
+  FROM pollution.pm25_av_events_all_regions pm25
+  LEFT JOIN 
+          ( 
+          SELECT t1.date, t2.eventid, t2.refid, t2.eventid2, t2.eventtype, t2.place, t2.mindate, t2.maxdate, t2.burnareaha, t2.metconditions, t2.field3, t2.field5, t2.field7
+          FROM pollution.pm25_av_events_all_regions t1, 
+                  ( 
+                  SELECT tab1.eventid, tab1.refid, tab1.eventid2, tab1.eventtype, 
+                  case when tab1.place like \'Sydney%\' then \'Sydney\' else tab1.place end as place,
+                  tab1.place as place2,
+                  tab1.mindate, tab1.maxdate, tab1.burnareaha, tab1.metconditions, tab2.field3, tab2.field5, tab2.field7
+                  FROM bio_events.tblevents tab1
+                  JOIN bio_events.tblreferences tab2 ON tab1.refid = tab2.refid
+                  ) t2
+          WHERE (t1.date = t2.mindate 
+                  OR t1.date >= t2.mindate 
+                  AND t1.date <= t2.maxdate)
+          group by t1.date, t2.eventid, t2.refid, t2.eventid2, t2.eventtype, t2.place, t2.mindate, t2.maxdate, t2.burnareaha, t2.metconditions, t2.field3, t2.field5, t2.field7
+          ) checked 
+  ON pm25.date = checked.date 
+          AND pm25.region = checked.place
+  group by pm25.region,pm25.date,pm25.pctile,
+          checked.eventtype,pm25.pm25_av
+  order by date
+  ) pm25
+  on pm10.region=pm25.region and pm10.date=pm25.date;')
+  
+  dbSendUpdate(ch,'comment on table pollution.d is \'Very important table of all validated events used in the biomass smoke mortality and hospital studies.  see code at I:/My Dropbox/data/biomort/extraction/extraction_overview.r\'')
+  # good quality qc plots are in 
+  # I:\My Dropbox\projects\1.302 Biomass\analysis\mortality\Biomort_Results\summaryTables\table1\Table1andFigs.r
+  
+  ")
+  
+  ###########
+  newnode(dsc='reshape wide, one column each', ttype='load',
+  i=c('pollution.d'),
+  o=c('pollution.validated_events'),
+  code="
+  
+  sqlQuery(ch,
+  # cat(
+  paste('create or replace view pollution.validated_events_prelim as
+  select distinct d.region, d.date, d.pm10, d.pm25,d.pm10pct, d.pm25pct,
+  ',paste(gsub(' ','',gsub(', ','',gsub('-','',c(t(sqlQuery(ch,'select distinct eventtype from bio_events.tblevents',as.is=T)))))),gsub(' ','',gsub(', ','',gsub('-','',c(t(sqlQuery(ch,'select distinct eventtype from bio_events.tblevents',as.is=T)))))),sep='.',collapse=', ')
+  ,'
+  from 
+  (((((( pollution.d as d left join ',
+  paste('(
+  select d1.region,d1.date,d1.eventtype as ',
+  gsub(' ','',gsub(', ','',gsub('-','',c(t(sqlQuery(ch,'select distinct eventtype from bio_events.tblevents',as.is=T))))))
+  ,' from pollution.d as d1 
+  where eventtype = \'',c(t(sqlQuery(ch,'select distinct eventtype from bio_events.tblevents',as.is=T))),'\'
+  and (pm10pct>=0.95 or pm25pct>=0.95)) as ',
+  gsub(' ','',gsub(', ','',gsub('-','',c(t(sqlQuery(ch,'select distinct eventtype from bio_events.tblevents',as.is=T))))))
+  ,' on 
+  d.region=',gsub(' ','',gsub(', ','',gsub('-','',c(t(sqlQuery(ch,'select distinct eventtype from bio_events.tblevents',as.is=T)))))),'.region
+  and d.date=',gsub(' ','',gsub(', ','',gsub('-','',c(t(sqlQuery(ch,'select distinct eventtype from bio_events.tblevents',as.is=T)))))),'.date'
+  ,sep='',collapse=') left join\n')
+  )
+  )
+  
+  sqlQuery(ch,'create or replace view pollution.validated_events_prelim2 as 
+  select region, date, pm10, pm25, pm10pct, pm25pct, bushfire, dust, nonbiomassfire, 
+         nonbiomassnonfire, possiblebiomass,
+  case when bushfire is not null then 1 else 0 end + case when prescribedburn is not null then 1 else 0 end as possiblebiomass_fix,
+          prescribedburn, woodsmoke
+  from pollution.validated_events_prelim;
+  
+  create or replace view pollution.validated_events as 
+  select region, date, pm10, pm25, pm10pct, pm25pct, bushfire, dust, nonbiomassfire, 
+         nonbiomassnonfire, 
+         case when possiblebiomass is not null and possiblebiomass_fix = 0 then \'possible biomass\' else null end as possiblebiomass,
+         prescribedburn, woodsmoke
+  from pollution.validated_events_prelim2;')
+  
+  sqlQuery(ch,
+  'GRANT ALL ON pollution.validated_events TO grant_williamson;
+  comment on view pollution.validated_events is \'this extracts the validated events and corresponding pollution data\';')
+  
+  ")
+  
+  
+  ###########
+  newnode(dsc='check the remaining 99% centile days with no refs using TOMS',ttype='load',
+  i=c('pollution.validated_events','TOMS'),
+  o=c('pollution.validated_events','pollution.{,poll,}_to_check'),
+  notes='I:/projects/1.302 Biomass/analysis/exposures/event validation/Manual Validation/check_99_unvalidated')
+  
+  # identify 99% centile days with no refs.
+  #missing99=function(poll){
+  
+  ###########
+  newnode(dsc='check the 99% centile days with no refs', ttype='load',
+  i='pollution.{poll}_av_events_all_regions',
+  o=c('pollution.{poll}_to_check','TOMS'),
+  code="
+  poll='pm10'
+  stat='av'
+  sqlQuery(ch,
+  # cat(
+  paste('
+  create or replace view pollution.',poll,'_to_check
+  as 
+  select ',poll,'.*, eventid,refid, eventtype, place,mindate,maxdate, field3,field5, field7
+  from
+  pollution.',poll,'_av_events_all_regions as ',poll,'
+  left join
+  (
+          SELECT t1.date, t2.*
+          FROM 
+                  pollution.',poll,'_',stat,'_events_all_regions t1
+          ,
+                  (
+                  select tab1.*, 
+                  case when place like \'Sydney%\' then \'Sydney\' else place end as region,
+                  field3,field5, field7 from
+                  ivan_hanigan.tblevents tab1
+                  join ivan_hanigan.tblreferences tab2
+                  on tab1.refid=tab2.refid
+                  ) t2
+          where t1.region=t2.region and 
+                  (
+                  t1.date=t2.mindate 
+                  or
+                  (t1.date >= t2.mindate and t1.date <= t2.maxdate)
+                  )
+  ) checked
+  on ',poll,'.date=checked.date
+  and ',poll,'.region=checked.region 
+  where pctile>=.99 and mindate is null 
+    ORDER BY ',poll,'.region, ',poll,'.pctile DESC;
+  grant all on pollution.',poll,'_to_check to grant_williamson
+  ',sep='')
+  )
+  
+  d=sqlQuery(ch,'SELECT distinct region, date 
+  from 
+  (
+  select * 
+  from 
+  pollution.pm10_to_check  
+  union all
+  select * 
+  from pollution.pm25_to_check  
+  ) foo
+  where region not like \'Hobart\' and region not like \'Launceston\';')
+  
+  write.table(d,'I:\\projects\\1.302 Biomass\\analysis\\exposures\\event validation\\Manual Validation\\check_99_unvalidated\\over99_unvalidated_20100223.csv',row.names=F,sep=',')
+  # send to sarah for checking with TOMS
+  # enter result,
+  # I:\\projects\\1.302 Biomass\\analysis\\exposures\\event validation\\Manual Validation\\check_99_unvalidated\\over99_unvalidated_toms_20100304_IH.xls
+  # also found a few of these by going back to Geoff Morgans work
+  # M:\\Environmental_Health\\Bushfires\\Exposures\\NSW\\validate events\\Geoff's old work
+  # and fairfax 5 unvalidated bushfire days.doc
+  ")
+  
+  #}
+  #"
+  ###########
+  newnode(dsc='check the ones shown as single eventtypes',
+  ttype='load',
+  i=c('pollution.validated_events','single eventtypes'),
+  o=c('pollution.validated_events','qc_timeseries_plots_each_eventmonth'),
+  notes="
+  qc_timeseries_plots_each_eventmonth  is in 
+  #I:/projects/1.302 Biomass/analysis/exposures/event validation/quality_control/do20100211_with new etc.r
+  #I:/projects/1.302 Biomass/analysis/exposures/event validation/quality_control/do.r
+  
+  
+  NOTE THE FOLLOWING IS NOT NECESSARY NOW WE DECIDED THAT THE LFS TYPE IS ANY BUSH,PRESCR,POSSIBLEBIO
+  
+  in I:/projects/1.302 Biomass/analysis/exposures/event validation/Manual Validation/
+  1. find refs data for multiple days and export to excel, decide
+  2. find each refid with query 1 in access frontend
+  3. edit record and change, noteing the reason for change
+  4. remake pollution.d
+  5. check for any remaining multiple types
+  ",
+  code="
+  sqlQuery(ch,
+                  'select *
+                  from pollution.validated_events
+                  where region = \'Sydney\' and 
+      (date >= \'2004-02-01\' AND date <= \'2004-02-21\' )')
+  
+  ")
+  
+  
+  ##########################################################################################
+  newnode(dsc='check the ones shown as single eventtypes', ttype='load',
+  i=c('qc_timeseries_plots_each_eventmonth'),
+  o=c('qc new dust'),
+  notes="",
+  code="
+  
+  sqlQuery(ch,
+  \"
+  select *
+  from pollution.validated_events
+  where region = 'Sydney' and 
+  (date >= '2007-05-01' AND date <= '2007-05-10' )
+  \")
+  
+  
+  sqlQuery(ch,
+  \"
+  select *
+  from pollution.validated_events
+  where region = 'Sydney' and dust is not null
+  \")
+  
+  ")
+  
+  ##########################################################################################
+  newnode(dsc='go',ttype='go',
+  i='functions',
+  o=c('age','city','disease'),
+  code="
+  
+  file.remove(
+  dir(pattern='run')
+  )
+  
+  source('i:/tools/transformations.r')
+  #source('extraction_transformations.r')
+  
+  #source(dir(pattern='transformations.r'))
+  shell(paste('i:/tools/transformations.py ',unlist(strsplit(getwd(),'/'))[length(unlist(strsplit(getwd(),'/')))],'_transformations.txt ',unlist(strsplit(getwd(),'/'))[length(unlist(strsplit(getwd(),'/')))],'_transformations',sep=''))
+  
+  # define the params
+  source(dir('run_files',pattern='functions', full.names = T))
+  
+  
+  # 'PERTH'     'Sydney'    'Newcastle' 'Illawarra'
+  city=cities[3]
+  ste=stes[3]
+  # mindate=mindates[2]   use select distinct date from pollution.stationdates_{city}_{poll} instead
+  mindate='1994-01-01'  # for the bioweather code needs this.
+  
+  #  'allages' '65plus'  'under65' 'under1' 
+  age=agegrps[1]
+  agegrp=agegrp_code[1]
+  
+  # 'allcause' 'resp'     'cvd'      'sids'    
+  disease=diseases[1]
+  codlist=codlists[1]
+  pm_event_type=pm_event_types[1]
+  print(paste(pm_event_type,'_',city,'_',disease,'_',age,sep=''))
+  
+  #source(dir(pattern='get_data'))
+  ")
+  
+  #do
+  
+  
+  
+  #subset PM to city
+  
+  
+  ###
+  newnode(dsc='subset PM to city', ttype='do',
+  
+  i=c('city','pollution.validated_events'),
+  o=c('pollution.validated_events_{city}','PM_plots'),
+  note="TASK this is where I want to add in the lfs_pure etc categories",
+  code="
+  
+  sqlQuery(ch,paste('drop table pollution.validated_events_',city,sep=''))
+  
+  sqlQuery(ch,
+  # cat(
+  paste('select *,
+  case when bushfire is not null and pm10pct >= .95 then 1
+          when prescribedburn is not null and pm10pct >= .95 then 1 
+          when possiblebiomass is not null and pm10pct >= .95 then 1
+          else 0 end as lfs_pm10,
+  case when bushfire is not null and pm25pct >= .95 then 1
+          when prescribedburn is not null and pm25pct >= .95 then 1
+          when possiblebiomass is not null and pm25pct >= .95 then 1
+          else 0 end as lfs_pm25,
+  case when pm10pct >= .95 then 1
+          else 0 end as allover95pct_pm10,
+  case when pm25pct >= .95 then 1 
+          else 0 end as allover95pct_pm25,
+  case when dust is not null and pm10pct >= .95 then 1
+          when nonbiomassfire is not null and pm10pct >= .95 then 1
+          when nonbiomassnonfire is not null and pm10pct >= .95 then 1
+          else 0 end as nonbio_pm10,
+  case when dust is not null and pm25pct >= .95 then 1
+          when nonbiomassfire is not null and pm25pct >= .95 then 1 
+          when nonbiomassnonfire is not null and pm25pct >= .95 then 1
+          else 0 end as nonbio_pm25
+  into pollution.validated_events_',city,'
+  from pollution.validated_events
+  where region = \'',city,'\'',sep='')
+  )
+  
+  
+  qc=sqlQuery(ch,
+  # cat(
+  paste('select * 
+  from pollution.validated_events_',city,'
+  where lfs_pm10 = 1 and nonbio_pm10 =1
+  order by date',sep='')
+  )
+  head(qc)
+  # TASK IS NONBIO EXCLUDING DAYS WHERE BIO AND NONBIO?  IE BUSHFIRE AND DUST = LFS AND NONBIO?
+  
+  qc=sqlQuery(ch,
+  # cat(
+  paste('select * 
+  from pollution.validated_events_',city,sep='')
+  )
+  head(qc)
+  
+  ## 
+  par(mfrow=c(2,1))
+  plot(qc$date,qc$pm10,type='l')
+  points(qc$date[qc$allover95pct_pm10==1],qc$pm10[qc$allover95pct_pm10==1],col='green',pch=16)
+  with(qc,segments(min(date),quantile(pm10,.95,na.rm=T),max(date),quantile(pm10,.95,na.rm=T),col='green'))
+  points(qc$date[qc$nonbio_pm10==1],qc$pm10[qc$nonbio_pm10==1],col='grey',pch=16)
+  points(qc$date[qc$lfs_pm10==1],qc$pm10[qc$lfs_pm10==1],col='red',pch=16)
+  
+  plot(qc$date,qc$pm25,type='l')
+  points(qc$date[qc$allover95pct_pm25==1],qc$pm25[qc$allover95pct_pm25==1],col='green',pch=16)
+  with(qc,segments(min(date),quantile(pm25,.95,na.rm=T),max(date),quantile(pm25,.95,na.rm=T),col='green'))
+  points(qc$date[qc$nonbio_pm25==1],qc$pm25[qc$nonbio_pm25==1],col='grey',pch=16)
+  points(qc$date[qc$lfs_pm25==1],qc$pm25[qc$lfs_pm25==1],col='red',pch=16)
+  
+  
+  dev.off()
+  
+  ")
+  
+  ##########################################
+  # PM_plots
+  newnode(dsc='PM_plots', ttype='do',
+  i='PM_plots',
+  o='website',
+  notes=' #I:/projects/1.302 Biomass/analysis/exposures/event validation/quality_control/do20100217.R
+                  #I:/projects/1.302 Biomass/analysis/exposures/event validation/quality_control/do.r
+                  #I:/projects/1.302 Biomass/analysis/exposures/event validation/Manual Validation/summaryTables/table1/Table1_20100215.r')
+  ##########################################
+  #weather
+  
+  newnode(dsc='weather', ttype='do',
+  i='city',
+  o=c('ivan_hanigan.bioweather_{city}_with_lags'),
+  notes='',
+  code="
+  
+  pwcent=sqlQuery(ch,
+  # cat(
+  paste('select case when studysite like \'Sydney%\' then \'Sydney\' else studysite end as region, 
+    sum(st_x(st_centroid(t2.the_geom))*total_pers)/sum(total_pers) as pwlon, sum(st_y(st_centroid(t2.the_geom))*total_pers)/sum(total_pers) as pwlat
+  from (select * from health.study_slas_01 where studysite like \'',city,'\\%\') t1, 
+  abs_cd.',ste,'cd01 as t2
+  where st_contains(t1.the_geom,st_centroid(t2.the_geom))
+  group by case when studysite like \'Sydney%\' then \'Sydney\' else studysite end ',sep='')
+  )
+          
+  
+  # create the SQL
+  #postIDW(
+  #area_data='abs_sla.wasla01',
+  #area_name='sla_name',
+  #area_code='sla_code',
+  #station_data='weather_bom.bom_daily_data_1990_2008',
+  #station_data_number='station_number',
+  #station_location_table='weather_bom.combstats',
+  #station_location_number='stnum',
+  #param_name='avtemp',
+  #vname='average_daily_temperature_calculated_by_averaging_the_max_and_m',
+  #timevar=' cast(year || \'-\' || month || \'-\' || day as date) ', 
+  #search_window=0.5)
+  #
+  
+  weathervars =matrix(c('average_daily_temperature_calculated_by_averaging_the_max_and_m','quality_of_average_daily_temperature_min_max_2_',
+  'maximum_temperature_in_24_hours_after_9am_local_time_in_degrees',
+    'quality_of_maximum_temperature_in_24_hours_after_9am_local_time',
+    'minimum_temperature_in_24_hours_before_9am_local_time_in_degree',
+    'quality_of_minimum_temperature_in_24_hours_before_9am_local_tim',
+          'average_daily_dew_point_temperature_in_degrees_c',
+    'quality_of_overall_dew_point_temperature_observations_used'),ncol=2,nrow=4,byrow=T)
+  #drop table ivan_hanigan.bioweather_',city,'_',substr(weathervars[i,1],1,18),';
+  
+  for(i in c(1:4)){
+  #i=1
+  
+  # sqlQuery(ch,paste('drop table ivan_hanigan.bioweather_',city,'_',substr(weathervars[i,1],1,18),sep=''))
+  
+  sqlQuery(ch,
+  # cat(
+  paste('
+  select cast(\'',city,'\' as text) as region, cast(year || \'-\' || month || \'-\' || day as date) ,
+          sum(t2.',weathervars[i,1],'*(1/(t1.distances^2))) / sum(1/(t1.distances^2)) as ',substr(weathervars[i,1],1,18),'
+  into ivan_hanigan.bioweather_',city,'_',substr(weathervars[i,1],1,18),'
+  from 
+          (
+          select weather_bom.combstats.stnum,
+                  st_distance(
+                          weather_bom.combstats.the_geom, 
+                          GeomFromText(
+                                                  \'POINT(\'||
+                                                  ',pwcent$pwlon,' ||
+                                                  \' \'||
+                                                  ',pwcent$pwlat,' ||\')\'
+                                                  ,4283)
+                  ) as distances  
+          from weather_bom.combstats
+          where st_distance(
+                          weather_bom.combstats.the_geom, 
+                          GeomFromText(
+                                                  \'POINT(\'||
+                                                  ',pwcent$pwlon,' ||
+                                                  \' \'||
+                                                  ',pwcent$pwlat,' ||\')\'
+                                                  ,4283)
+                                                                                                  )<=0.5
+          ) as t1 
+  join weather_bom.bom_daily_data_1990_2008 as t2
+  on t1.stnum=t2.station_number 
+  where ',weathervars[i,2],' =\'Y\' and cast(year || \'-\' || month || \'-\' || day as date) >= \'',as.Date(mindate)-4,'\' and year <= 2007 
+  group by cast(year || \'-\' || month || \'-\' || day as date) ;',sep='')
+  )
+  }
+  
+  sqlQuery(ch,paste('drop table ivan_hanigan.bioweather_',city,';',sep=''))
+  # stitch together
+  
+  sqlQuery(ch,
+  # cat(
+  paste('
+  select t1.*,',
+  paste('t',2:4,'.',substr(weathervars[2:4,1],1,18),sep='',collapse=','),
+  ' into ivan_hanigan.bioweather_',city,'
+   from ((ivan_hanigan.bioweather_',city,'_',substr(weathervars[1,1],1,18),' as t1 ',
+  paste(' left join ivan_hanigan.bioweather_',city,'_',substr(weathervars[2:4,1],1,18),' as t',2:4,' on t1.date=t',2:4,'.date',sep='',collapse=')\n')
+  ,sep='')
+  )
+  
+  # construct lags
+  # sqlQuery(ch,paste('drop table ivan_hanigan.bioweather_',city,'_with_lags;',sep=''))
+  sqlQuery(ch,
+  paste('select ivan_hanigan.bioweather_',city,'.*,avtemplags.average_daily_temp_lag ,dewlags.average_daily_dew_lag
+  into ivan_hanigan.bioweather_',city,'_with_lags
+  from ivan_hanigan.bioweather_',city,'
+  join
+  (
+  SELECT t1.region, t1.date, count(t2.average_daily_temp) as counts, Avg(t2.average_daily_temp) AS average_daily_temp_lag 
+  FROM ivan_hanigan.bioweather_',city,' AS t1 
+  , ivan_hanigan.bioweather_',city,' AS t2  
+  where 
+  t1.date between t2.date +1 and t2.date + 3 
+  GROUP BY t1.region, t1.date 
+  having count(t2.average_daily_temp) >2
+  ORDER BY t1.region, t1.date
+  ) avtemplags
+  on ivan_hanigan.bioweather_',city,'.date=avtemplags.date
+  join
+  (
+  SELECT t1.region, t1.date, count(t2.average_daily_temp) as counts, Avg(t2.average_daily_dew_) AS average_daily_dew_lag 
+  FROM ivan_hanigan.bioweather_',city,' AS t1 
+  , ivan_hanigan.bioweather_',city,' AS t2  
+  where 
+  t1.date between t2.date +1 and t2.date + 3 
+  GROUP BY t1.region, t1.date 
+  having count(t2.average_daily_temp) >2
+  ORDER BY t1.region, t1.date
+  ) dewlags
+  on ivan_hanigan.bioweather_',city,'.date=dewlags.date',sep=''))
+  
+  # qc
+  qc=sqlQuery(ch,paste('select * from ivan_hanigan.bioweather_',city,'_with_lags limit 100',sep=''))
+  head(qc) 
+  # go to 
+  qc2=read.table('clipboard')
+  # make sure there are the same dates
+  plot(qc[,3], qc2$V2)
+  abline(0,1)
+   
+  # OLD STUFF
+  #
+  #write.table(sqlQuery(bio,
+  ##cat(
+  #paste('select t3.studysite as region,t3.dates,t3.data as temp,temp_lagged.temp_lag,dew.data as dew, dew_lagged.dew_lag
+  #from (((
+  #select * from meteorology.weather_studysite_gam where parameter = \'temp\') t3 
+  #left join 
+  #(
+  #SELECT t1.studysite, t1.dates, count(t2.data) as counts, Avg(t2.data) AS temp_lag 
+  #FROM (select * from meteorology.weather_studysite_gam where parameter = \'temp\') AS t1 
+  #join (select * from meteorology.weather_studysite_gam where parameter = \'temp\') AS t2 
+  #on (t1.studysite=t2.studysite) where t1.dates between t2.dates +1 and t2.dates + 3 
+  #GROUP BY t1.studysite, t1.dates 
+  #having count(t2.data) >2
+  #ORDER BY t1.studysite, t1.dates
+  #) as temp_lagged
+  #on t3.studysite=temp_lagged.studysite and t3.dates=temp_lagged.dates)
+  #left join 
+  #(select * from meteorology.weather_studysite_gam where parameter = \'dew\') dew 
+  #on t3.studysite=dew.studysite and t3.dates=dew.dates)
+  #left join 
+  #(
+  #SELECT t1.studysite, t1.dates, count(t2.data) as counts, Avg(t2.data) AS dew_lag 
+  #FROM (select * from meteorology.weather_studysite_gam where parameter = \'dew\') AS t1 
+  #join (select * from meteorology.weather_studysite_gam where parameter = \'dew\') AS t2 
+  #on (t1.studysite=t2.studysite) where t1.dates between t2.dates +1 and t2.dates + 3 
+  #GROUP BY t1.studysite, t1.dates 
+  #having count(t2.data) >2
+  #ORDER BY t1.studysite, t1.dates
+  #) as dew_lagged
+  #on t3.studysite=dew_lagged.studysite and t3.dates=dew_lagged.dates
+  #where t3.studysite = \'',city,'\' and t3.dates >= \'',mindate,'\'',sep=''))
+  #,'weather_data.csv',sep=',',row.names=F,na='',quote=F)
+  #
+  #
+          
+  ")
+  
+  #flu
+  newnode(dsc='load flu data, calc epi', ttype='do',
+  i=c('load scripts'),
+  o=c('-d bio -t health.influenza_epidemics'),
+  notes='J:\\NCEPH_Datasets\\Restricted\\Biomass_WA_HEALTH_ADM_ED\\Data\\calculate_wa_flu_epidemics.r
+  J:\\NCEPH_Datasets\\Restricted\\Biomass_NSW_HEALTH_ADM_ED\\biomass_nsw_health_explore_FLU.r
+  epidemics actually recalced in extract script
+  
+  the health.influenza_epidemics table is a master table ultimately made from this extraction/extraction_overview
+  
+  
+  select case when t1.studysite like \'Sydney%\' then \'Sydney\' else t1.studysite end as studysite ,t1.admdate as date ,sum(t1.count) as counts
+  from (
+  select studysite, admdate, count(*)
+  from biomass_hospital.nsw_isc_master9397 join 
+  (select studysite,substring(cast(biomass_study_slas.sla_concorded as text),2,4) as slares
+  from biomass_study_slas
+  where cast(biomass_study_slas.sla_concorded as text) like \'1%\'
+  group by studysite,substring(cast(biomass_study_slas.sla_concorded as text),2,4)
+  order by studysite) as conc
+  on (biomass_hospital.nsw_isc_master9397.slares=conc.slares)
+  where icd1 Like \'487\' or (ICD1) like \'487%\'
+  --and emergncy = \'1\'
+  and admdate > \'1993-06-30\'
+  group by studysite, admdate
+  union all
+  select studysite, admdate, count(*)
+  from biomass_hospital.nsw_eoc_master9707 join 
+  (select studysite,substring(cast(biomass_study_slas.sla_concorded as text),2,4) as slares
+  from biomass_study_slas
+  where cast(biomass_study_slas.sla_concorded as text) like \'1%\'
+  group by studysite,substring(cast(biomass_study_slas.sla_concorded as text),2,4)
+  order by studysite) as conc
+  on (biomass_hospital.nsw_eoc_master9707.slares=conc.slares)
+  where icd10d1 Between \'J10\' and \'J11.9%\'
+  --and emergncy = \'1\'
+  and admdate > \'1993-06-30\'
+  group by studysite, admdate
+  ) as t1
+  where t1.studysite like \'Sydney%\' or t1.studysite = \'Illawarra\' or  t1.studysite = \'Newcastle\'
+  group by case when t1.studysite like \'Sydney%\' then \'Sydney\' else t1.studysite end, t1.admdate
+  order by case when t1.studysite like \'Sydney%\' then \'Sydney\' else t1.studysite end, t1.admdate>
+  
+  ',
+  code="")
+  
+  
+  
+  
+  #########
+  newnode(dsc='flu', ttype='do',
+  i=c('city','-d bio -t health.influenza_epidemics'),
+  o=c('ivan_hanigan.influenza_epidemics','flu_plot'),
+  notes='Aggregate Syd, Newc and Wollo to get epidemics here and replace previous epi work from bio',
+  code="
+  
+  flu=sqlQuery(bio,paste('select * from health.influenza_epidemics 
+           order by dates',sep=''))
+  head(flu)
+  cit=names(table(flu$studysite))
+  par(mfrow=c(4,1))
+  
+  for(ci in cit){print(ci)
+  plot(flu$dates[flu$studysite==ci],flu$counts[flu$studysite==ci],type='l',col='grey',main=ci,ylab='counts')
+  points(flu$dates[flu$flu_epidemic==1 & flu$studysite==ci],flu$counts[flu$flu_epidemic==1 & flu$studysite==ci],col='red',pch=16,cex=.7)
+  }
+  
+  dev.off()
+  
+  
+  sqlQuery(ch,'drop table health.influenza_epidemics')
+  write.csv(flu,'flu.csv',row.names=F,quote=F)
+  
+  load_newtable_to_postgres(inputfilepath='flu.csv',schema='health',tablename='influenza_epidemics',pk='studysite,dates',header=TRUE,printcopy=TRUE,withoids=FALSE,pguser='ivan_hanigan',db='delphe',ip='130.56.102.30',source_file='STDIN',datecol='dates')
+  
+  shell('type sqlquery.txt \'flu.csv\' | \'C:\\Program Files\\PostgreSQL\\8.3\\bin\\psql\' -h 130.56.102.30 -U ivan_hanigan -d delphe')
+  sqlQuery(ch,'VACUUM ANALYZE health.influenza_epidemics;')
+  file.remove('flu.csv')
+  file.remove('sqlquery.txt')
+  
+  
+  # Aggregate Syd, Newc and Wollo
+  # get pctiles of the conurbation
+  qc=sqlQuery(ch,'select dates, sum(counts) 
+  from health.influenza_epidemics 
+  where studysite = \'Illawarra\' or studysite = \'Newcastle\' or studysite = \'Sydney\' 
+  group by dates
+  order by dates')
+  
+  plot(qc$sum,flu[flu$studysite=='Sydney','counts'])
+  abline(0,1)
+  dev.off()
+  
+  sqlQuery(ch,'drop table health.influenza_epidemics_greater_syd')
+  
+  sqlQuery(ch,
+  'create table health.influenza_epidemics_greater_syd (rank serial, dates date, data numeric, pctile numeric); 
+  insert into health.influenza_epidemics_greater_syd (dates, data) 
+  select dates, sum(counts) 
+  from health.influenza_epidemics 
+  where studysite = \'Illawarra\' or studysite = \'Newcastle\' or studysite = \'Sydney\' 
+  group by dates
+  order by sum(counts);')
+  
+  nrow(sqlQuery(ch,'select * from health.influenza_epidemics_greater_syd'))
+  
+  sqlQuery(ch,'update health.influenza_epidemics_greater_syd set pctile = (cast(rank as numeric)-1)/(5112-1);')
+  
+  # what is the distribution?
+  qc=sqlQuery(ch,'SELECT *
+    FROM health.influenza_epidemics_greater_syd')
+  head(qc)
+  
+  hist(qc$data,breaks=0:24) 
+  quantile(qc$data,.9)
+  # 2
+  quantile(qc$data,.91)
+  # 2
+  quantile(qc$data,.92)
+  #3
+    
+  # so therefore all days with greater than 2 cases is an epidemic in sydney?
+  # how about in perth?
+  qc=sqlQuery(ch,'SELECT *
+    FROM health.influenza_epidemics
+    where studysite = \'PERTH\'')
+  head(qc)
+  summary(qc$counts)
+  hist(qc$counts,breaks=0:11) 
+  quantile(qc$counts,.9)
+  # 1 
+  quantile(qc$counts,seq(.91,.95,.01))
+  # 91% 92% 93% 94% 95% 
+    # 1   1   2   2   2 
+  # so days with greater than 1 case in Perth?  
+    
+  ## so now classify them
+  
+  # sqlQuery(ch,'ALTER TABLE health.influenza_epidemics drop COLUMN flu_epidemic_2')
+  
+  sqlQuery(ch,'ALTER TABLE health.influenza_epidemics ADD COLUMN flu_epidemic_2 numeric')
+  
+  # this was wrong as it includes days with 2 because they are incremented by 0.000001 pctiles
+  # fixed so now only days with more than 2 in greater sydney region are flagged.
+  sqlQuery(ch,'update health.influenza_epidemics set flu_epidemic_2 = 1 where (studysite = \'Illawarra\' or studysite = \'Newcastle\' or studysite = \'Sydney\' ) and dates in 
+  (SELECT dates
+    FROM health.influenza_epidemics_greater_syd
+    where data  > 2);')
+  
+    
+  # and Perth sep
+  sqlQuery(ch,'update health.influenza_epidemics set flu_epidemic_2 = 1 where studysite = \'PERTH\' and counts > 1') 
+    
+  # so finally I want to set the dates between epidemic days to be an epidemic
+  
+  cit=sqlQuery(ch,'select distinct studysite from health.influenza_epidemics')
+          
+  for(ci in cit[c(1,2,3,4),1]){
+  # ci=cit[3,1]
+  sqlQuery(ch,
+  # cat(
+  paste('
+  update health.influenza_epidemics set flu_epidemic_2 = 1 where studysite = \'',ci,'\' and dates in 
+  (
+  select t1.dates
+  from
+          (
+          select *
+          from health.influenza_epidemics
+          where studysite = \'',ci,'\'
+          ) t1
+  ,
+          (
+          select *
+          from health.influenza_epidemics
+          where studysite = \'',ci,'\'
+          ) t2
+  where (t2.dates >= t1.dates-1 and  t2.dates <= t1.dates+1)
+  group by t1.dates,t1.flu_epidemic_2
+  having count(t2.flu_epidemic_2) = 2 and t1.flu_epidemic_2 is null
+  order by t1.dates);
+  ',sep='')
+  )
+  #'
+  }
+  
+  
+  
+  
+  # check  
+  # check max dates
+  sqlQuery(ch,'SELECT studysite, max(dates)
+    FROM health.influenza_epidemics
+    group by studysite')
+  # studysite        max
+  # 1     PERTH 2007-11-27
+  # 2    Sydney 2007-06-29
+  # 3 Newcastle 2007-06-21
+  # 4 Illawarra 2007-05-06  
+  
+  # NOTE looks like nsw stop in mid 07
+  qc=sqlQuery(res,'SELECT admdate, count(*)
+    FROM biomass_hospital.nsw_eoc0607
+    group by admdate 
+  having admdate >= \'2006-06-01\'
+    order by admdate ;')
+  head(qc)
+  plot(qc$admdate,qc$count,type='l')
+  tail(qc)
+  # yep, 2007-06-30 is the last day, apart from one case  2007-08-03.
+  
+  flu=sqlQuery(ch,paste('select * from health.influenza_epidemics 
+  where dates >= \'1994-01-01\' and dates <= \'2007-05-06\' 
+           order by dates',sep=''))
+  head(flu)
+  cit=names(table(flu$studysite))
+  
+  
+  qc_2=sqlQuery(ch,paste('select * from health.influenza_epidemics_greater_syd
+  where dates >= \'1994-01-01\' and dates <= \'2007-05-06\' 
+           order by dates',sep=''))
+  windows(18,10)
+  par(mfrow=c(5,1),mar=c(2,3,2,1))
+  plot(qc_2$dates,qc_2$data,type='l',col='grey',main='Greater Sydney',ylab='counts')
+  points(qc_2$dates[qc_2$pctile>=0.9],qc_2$data[qc_2$pctile>=0.9],col='red',pch=16,cex=.7)
+  
+  
+  for(ci in cit[c(4,1,2,3)]){print(ci)
+  plot(flu$dates[flu$studysite==ci],flu$counts[flu$studysite==ci],type='l',col='grey',main=ci,ylab='counts')
+  points(flu$dates[flu$flu_epidemic_2==1 & flu$studysite==ci],flu$counts[flu$flu_epidemic_2==1 & flu$studysite==ci],col='red',pch=16,cex=.7)
+  }
+  
+  savePlot('qc/qc_flu.jpg',type=c('jpg'))
+  dev.off()
+  
+  # par(mfrow=c(2,2))
+  
+  # for(ci in cit){print(ci)
+  # hist(flu$counts[flu$studysite==ci],main=ci)
+  # }
+  # dev.off()
+  
+  # quantile(flu$counts[flu$studysite=='Sydney'],.9)
+  
+  # write to csv
+  flu=sqlQuery(ch,\"select * from health.influenza_epidemics 
+  where dates >= \'1994-01-01\' and dates <= \'2007-05-06\' 
+  and studysite not like 'PERTH'\")
+  
+  head(flu)
+  write.csv(flu,'greater_sydney_flu_epidemics.csv',row.names=F)
+  
+  # SEND TO GEOFF AND HISHAM, WITHOUT COUNTS
+  
+  # how many in warm months
+  summerFlu <- sqlQuery(ch,
+  \"
+  select dates, sum(counts), flu_epidemic_2
+  from 
+  (
+          select * from health.influenza_epidemics 
+          where dates >= '1994-01-01' and dates <= '2007-05-06' 
+          and (extract(month from dates) between 9 and 12
+          or extract(month from dates)  between 1 and 2)
+          and studysite not like 'PERTH'
+  ) t1
+  where flu_epidemic_2 is not null
+  group by dates, flu_epidemic_2
+  order by dates
+  \")
+           
+  
+  qc_2=sqlQuery(ch,paste('select * from health.influenza_epidemics_greater_syd
+  where dates >= \'1994-01-01\' and dates <= \'2007-05-06\' 
+           order by dates',sep=''))
+  windows(18,10)
+  plot(qc_2$dates,qc_2$data,type='l',col='grey',main='Greater Sydney',ylab='counts')
+  points(qc_2$dates[qc_2$data>=3],qc_2$data[qc_2$data>=3],col='red',pch=16,cex=.7)
+  points(summerFlu$dates,summerFlu$sum,col='blue',pch=16,cex=.7)
+  savePlot('qc_summerFlu.jpg',type=c('jpg'))
+  dev.off()
+  
+  ")
+  
+  
+  #########"
+  newnode(dsc='ozone', ttype='do',
+  i=c('city','imputing script\tI:/projects/1.302 Biomass/analysis/exposures/event validation/impute/load.r and todo.r','combined pollutants'),
+  o=c('pollution.o3_max_events_city'),
+  notes='this had to be redone after the collapse, there are some issues in the load.r to be revisited',
+  code="
+  
+  qc_city='illawarra'
+  qc=sqlQuery(ch,paste('select * from pollution.o3_max_events_',qc_city,' order by date',sep=''))
+  with(qc,plot(date,o3_max,type='l'))
+  dev.off()
+  ")
+  
+  ###########################"
+  #standard covariates
+  newnode(dsc='standard covariates', ttype='do',
+  i=c('ivan_hanigan.bioweather_{city}_with_lags','ivan_hanigan.influenza_epidemics','pollution.o3_max_events_city'),
+  o=c('ivan_hanigan.standard_covariates_city'),
+  notes = 'This was changed on 8 Mar 2011 to use RpgSql and cast flu as 0,1',
+  code="
+  
+  writeClipboard(paste(names(dbGetQuery(ch,paste('select * from ivan_hanigan.bioweather_',city,'_with_lags limit 1',sep=''))),sep='',collapse=','))
+  
+  # redo 8/3/2011 to fix flu coding
+  
+  for(city in cities){
+  dbSendUpdate(ch,paste('drop table ivan_hanigan.standard_covariates_',city,sep=''))
+  
+  dbSendUpdate(ch,
+  # cat(
+  paste('select region,t1.date,
+    average_daily_temp as temperature,
+    maximum_temperatur,
+    minimum_temperatur,
+    average_daily_dew_ as  dewpt,
+    average_daily_temp_lag as temp_lag,
+    average_daily_dew_lag as dew_lag,
+    case when t2.flu_epidemic_2 is not null then cast(t2.flu_epidemic_2 as text) else \'0\' end as flu,
+    t3.o3_max
+  into ivan_hanigan.standard_covariates_',city,'
+  from ivan_hanigan.bioweather_',city,'_with_lags t1
+  left join 
+  health.influenza_epidemics t2
+  on t1.region=t2.studysite and t1.date=t2.dates
+  left join 
+  pollution.o3_max_events_',city,' t3
+  on t1.date=t3.date
+  order by t1.date',sep='')
+  )
+  }
+  
+  ")
+  
+  #########################################"
+  #join exposures
+  newnode(dsc='join exposures', ttype='do',
+  i=c('pollution.validated_events_{city}',
+    'ivan_hanigan.standard_covariates_city'),
+  o='ivan_hanigan.exposures_{city}',
+  notes = 'remade ivan_hanigan.exposures_{city} on 8/3/2011 with dbGetQuery, left the validated_events tables alone.',
+  code="
+  
+  # get pm running means
+  sqlQuery(ch,paste('drop table  pollution.validated_events_',city,'_with_mean_of_lags;',sep=''))
+  
+  sqlQuery(ch,
+  # cat(
+  paste('select alldates.region, alldates.date, foo.pm10_mean_lag_0_3, bar.pm25_mean_lag_0_3,
+          foofoo.pm10_mean_lag_0_1,barbar.pm25_mean_lag_0_1
+  into pollution.validated_events_',city,'_with_mean_of_lags
+  from  ivan_hanigan.standard_covariates_',city,' alldates
+  left join
+  (
+  SELECT t1.region, t1.date, count(t2.pm10) as counts, Avg(t2.pm10) AS pm10_mean_lag_0_3 
+  FROM pollution.validated_events_',city,' AS t1 
+  , pollution.validated_events_',city,' AS t2  
+  where 
+  t1.date between t2.date and t2.date + 3 
+  GROUP BY t1.region, t1.date 
+  having count(t2.pm10) >3
+  ORDER BY t1.region, t1.date
+  ) foo
+  on alldates.region=foo.region and alldates.date=foo.date
+  left join
+  (
+  SELECT t1.region, t1.date, count(t2.pm25) as counts, Avg(t2.pm25) AS pm25_mean_lag_0_3 
+  FROM pollution.validated_events_',city,' AS t1 
+  , pollution.validated_events_',city,' AS t2  
+  where 
+  t1.date between t2.date and t2.date + 3 
+  GROUP BY t1.region, t1.date 
+  having count(t2.pm25) >3
+  ORDER BY t1.region, t1.date
+  ) bar
+  on alldates.region=bar.region and alldates.date=bar.date
+  left join
+  (
+  SELECT t1.region, t1.date, count(t2.pm10) as counts, Avg(t2.pm10) AS pm10_mean_lag_0_1 
+  FROM pollution.validated_events_',city,' AS t1 
+  , pollution.validated_events_',city,' AS t2  
+  where 
+  t1.date between t2.date and t2.date + 1 
+  GROUP BY t1.region, t1.date 
+  having count(t2.pm10) >1
+  ORDER BY t1.region, t1.date
+  ) foofoo
+  on alldates.region=foofoo.region and alldates.date=foofoo.date
+  left join
+  (
+  SELECT t1.region, t1.date, count(t2.pm25) as counts, Avg(t2.pm25) AS pm25_mean_lag_0_1 
+  FROM pollution.validated_events_',city,' AS t1 
+  , pollution.validated_events_',city,' AS t2  
+  where 
+  t1.date between t2.date and t2.date + 1 
+  GROUP BY t1.region, t1.date 
+  having count(t2.pm25) >1
+  ORDER BY t1.region, t1.date
+  ) barbar
+  on alldates.region=barbar.region and alldates.date=barbar.date
+  ',sep='')
+  )
+  #
+  
+  # set up SQL
+  namlist=names(sqlQuery(ch,paste('select * from pollution.validated_events_',city,' limit 10',sep='')))
+  
+  for(i in 0:3){
+  
+          cat(
+          paste('t',i+2,'.',
+          namlist[3:length(namlist)]
+          ,' as ',
+          namlist[3:length(namlist)]
+          ,'_lag',i,sep='',collapse=',\n')
+          )
+          cat(',\n')
+          
+          }
+  
+  # redo on 8/3/2011 to incorporate fixed flu
+  for(city in cities){
+  dbSendUpdate(ch,paste('drop table ivan_hanigan.exposures_',city,';',sep=''))
+  dbSendUpdate(ch,
+  # cat(
+  paste('
+  select t1.*,
+          t2.pm10 as pm10_lag0,
+          t2.pm25 as pm25_lag0,
+          t2.pm10pct as pm10pct_lag0,
+          t2.pm25pct as pm25pct_lag0,
+          t2.bushfire as bushfire_lag0,
+          t2.dust as dust_lag0,
+          t2.nonbiomassfire as nonbiomassfire_lag0,
+          t2.nonbiomassnonfire as nonbiomassnonfire_lag0,
+          t2.possiblebiomass as possiblebiomass_lag0,
+          t2.prescribedburn as prescribedburn_lag0,
+          t2.woodsmoke as woodsmoke_lag0,
+          t2.lfs_pm10 as lfs_pm10_lag0,
+          t2.lfs_pm25 as lfs_pm25_lag0,
+          t2.allover95pct_pm10 as allover95pct_pm10_lag0,
+          t2.allover95pct_pm25 as allover95pct_pm25_lag0,
+          t2.nonbio_pm10 as nonbio_pm10_lag0,
+          t2.nonbio_pm25 as nonbio_pm25_lag0,
+          t3.pm10 as pm10_lag1,
+          t3.pm25 as pm25_lag1,
+          t3.pm10pct as pm10pct_lag1,
+          t3.pm25pct as pm25pct_lag1,
+          t3.bushfire as bushfire_lag1,
+          t3.dust as dust_lag1,
+          t3.nonbiomassfire as nonbiomassfire_lag1,
+          t3.nonbiomassnonfire as nonbiomassnonfire_lag1,
+          t3.possiblebiomass as possiblebiomass_lag1,
+          t3.prescribedburn as prescribedburn_lag1,
+          t3.woodsmoke as woodsmoke_lag1,
+          t3.lfs_pm10 as lfs_pm10_lag1,
+          t3.lfs_pm25 as lfs_pm25_lag1,
+          t3.allover95pct_pm10 as allover95pct_pm10_lag1,
+          t3.allover95pct_pm25 as allover95pct_pm25_lag1,
+          t3.nonbio_pm10 as nonbio_pm10_lag1,
+          t3.nonbio_pm25 as nonbio_pm25_lag1,
+          t4.pm10 as pm10_lag2,
+          t4.pm25 as pm25_lag2,
+          t4.pm10pct as pm10pct_lag2,
+          t4.pm25pct as pm25pct_lag2,
+          t4.bushfire as bushfire_lag2,
+          t4.dust as dust_lag2,
+          t4.nonbiomassfire as nonbiomassfire_lag2,
+          t4.nonbiomassnonfire as nonbiomassnonfire_lag2,
+          t4.possiblebiomass as possiblebiomass_lag2,
+          t4.prescribedburn as prescribedburn_lag2,
+          t4.woodsmoke as woodsmoke_lag2,
+          t4.lfs_pm10 as lfs_pm10_lag2,
+          t4.lfs_pm25 as lfs_pm25_lag2,
+          t4.allover95pct_pm10 as allover95pct_pm10_lag2,
+          t4.allover95pct_pm25 as allover95pct_pm25_lag2,
+          t4.nonbio_pm10 as nonbio_pm10_lag2,
+          t4.nonbio_pm25 as nonbio_pm25_lag2,
+          t5.pm10 as pm10_lag3,
+          t5.pm25 as pm25_lag3,
+          t5.pm10pct as pm10pct_lag3,
+          t5.pm25pct as pm25pct_lag3,
+          t5.bushfire as bushfire_lag3,
+          t5.dust as dust_lag3,
+          t5.nonbiomassfire as nonbiomassfire_lag3,
+          t5.nonbiomassnonfire as nonbiomassnonfire_lag3,
+          t5.possiblebiomass as possiblebiomass_lag3,
+          t5.prescribedburn as prescribedburn_lag3,
+          t5.woodsmoke as woodsmoke_lag3,
+          t5.lfs_pm10 as lfs_pm10_lag3,
+          t5.lfs_pm25 as lfs_pm25_lag3,
+          t5.allover95pct_pm10 as allover95pct_pm10_lag3,
+          t5.allover95pct_pm25 as allover95pct_pm25_lag3,
+          t5.nonbio_pm10 as nonbio_pm10_lag3,
+          t5.nonbio_pm25 as nonbio_pm25_lag3,
+    t6.pm10_mean_lag_0_1,
+    t6.pm25_mean_lag_0_1,
+    t6.pm10_mean_lag_0_3,
+    t6.pm25_mean_lag_0_3
+  into ivan_hanigan.exposures_',city,'
+  from 
+  ivan_hanigan.standard_covariates_',city,' t1
+  left join 
+  pollution.validated_events_',city,' t2
+  on t1.region=t2.region and t1.date=t2.date
+  left join 
+  pollution.validated_events_',city,' t3
+  on t1.region=t3.region and t1.date=t3.date+1
+  left join 
+  pollution.validated_events_',city,' t4
+  on t1.region=t4.region and t1.date=t4.date+2
+  left join 
+  pollution.validated_events_',city,' t5
+  on t1.region=t5.region and t1.date=t5.date+3
+  left join 
+  pollution.validated_events_',city,'_with_mean_of_lags t6
+  on t1.region=t6.region and t1.date=t6.date ',sep='')
+  )
+  }
+  
+  ")
+  
+  #################################################
+  #" 
+  newnode(dsc='calc_event_pm', ttype='do',
+  notes='calculate the pm_continuous_background',
+  i='ivan_hanigan.exposures_{city}',
+  o=c('ivan_hanigan.apportioned_{pm}_{city}'),
+  code="
+  
+  # city=tolower(cities[4])
+  city=cities[2]
+  city
+  
+  for(pm in pm_grps[,1]){
+  print(pm)
+  
+  # first calculate the pm_continous_background (which has the event days imputed as the 30 day moving average, without prior event days) 
+  # and pm_continuous_lfs which is the difference)
+  # only for >=99% here.
+  
+  #sqlQuery(ch,paste('drop table ivan_hanigan.apportioned_',pm,'_',city,sep=''))
+  sqlQuery(ch,
+  # cat(
+  paste('
+  select t1.region, t1.date, t1.',pm,'_lag0, t1.lfs_',pm,'_lag0, avg(t2.',pm,') as moav30,
+  case when lfs_',pm,'_lag0 > 0 and ',pm,'pct_lag0 >=0.99 then avg(t2.',pm,') else t1.',pm,'_lag0 end as ',pm,'_continuous_background, 
+  case when lfs_',pm,'_lag0 > 0 and ',pm,'pct_lag0 >=0.99 then t1.',pm,'_lag0 - avg(t2.',pm,') 
+          when t1.',pm,'_lag0 is not null then 0 else null end as ',pm,'_continuous_lfs
+  into ivan_hanigan.apportioned_',pm,'_',city,'
+  from
+  (
+          select region, date, ',pm,'_lag0, ',pm,'pct_lag0,  lfs_',pm,'_lag0
+          from ivan_hanigan.exposures_',city,' 
+          order by date
+  ) as t1,
+  (
+          select region, date, ',pm,'_lag0,
+          case when lfs_',pm,'_lag0 = 1 and ',pm,'pct_lag0 >=0.99 then NULL else ',pm,'_lag0 end as ',pm,'
+          from ivan_hanigan.exposures_',city,' 
+          order by date
+  ) as t2
+  where t2.date between t1.date-30 and t1.date
+  group by t1.region, t1.date, t1.',pm,'_lag0,lfs_',pm,'_lag0,',pm,'pct_lag0
+  having count(t2.',pm,'_lag0) > (29*.7)
+  order by t1.date
+  ',sep=''))
+  }
+  
+  #NB needed the extra 'when t1.',pm,'_lag0 is not null then 0 else null end' 
+  # because otherwise you can get a cont_lfs the day after a break where there are 30 before it
+  # note 70% of the 30 days must be present
+  ")
+  
+  #################################################
+  # do again for dust
+  newnode(dsc='calc_event_pm_dust', ttype='do',
+  notes='calculate the pm_continuous_background on dust days, only do pm10',
+  i='ivan_hanigan.exposures_{city}',
+  o=c('ivan_hanigan.apportioned_{pm}_{city}_dust'),
+  code="
+  
+  # city=tolower(cities[4])
+  city=cities[2]
+  city
+  
+  pm = pm_grps[1,1]
+  print(pm)
+  
+  # first calculate the pm_continous_background (which has the event days imputed as the 30 day moving average, without prior event days) 
+  # and pm_continuous_lfs which is the difference)
+  # only for >=99% here.
+  
+  #sqlQuery(ch,paste('drop table ivan_hanigan.apportioned_',pm,'_',city,'_dust',sep=''))
+  sqlQuery(ch,
+  # cat(
+  paste('
+  select t1.region, t1.date, t1.',pm,'_lag0, t1.dust_lag0, avg(t2.',pm,') as moav30,
+  case when t1.dust_lag0 = \'dust\' and ',pm,'pct_lag0 >=0.99 then avg(t2.',pm,') else t1.',pm,'_lag0 end as ',pm,'_continuous_background_dust, 
+  case when t1.dust_lag0 = \'dust\' and ',pm,'pct_lag0 >=0.99 then t1.',pm,'_lag0 - avg(t2.',pm,') 
+          when t1.',pm,'_lag0 is not null then 0 else null end as ',pm,'_continuous_dust
+  into ivan_hanigan.apportioned_',pm,'_',city,'_dust
+  from
+  (
+          select region, date, ',pm,'_lag0, ',pm,'pct_lag0,  lfs_',pm,'_lag0, dust_lag0
+          from ivan_hanigan.exposures_',city,' 
+          order by date
+  ) as t1,
+  (
+          select region, date, ',pm,'_lag0,
+          case when dust_lag0 = \'dust\' and ',pm,'pct_lag0 >=0.99 then NULL else ',pm,'_lag0 end as ',pm,'
+          from ivan_hanigan.exposures_',city,' 
+          order by date
+  ) as t2
+  where t2.date between t1.date-30 and t1.date
+  group by t1.region, t1.date, t1.dust_lag0, t1.',pm,'_lag0,lfs_',pm,'_lag0,',pm,'pct_lag0
+  having count(t2.',pm,'_lag0) > (29*.7)
+  order by t1.date
+  ',sep=''))
+  
+  
+  #NB needed the extra 'when t1.',pm,'_lag0 is not null then 0 else null end' 
+  # because otherwise you can get a cont_lfs the day after a break where there are 30 before it
+  # note 70% of the 30 days must be present
+  ")
+  
+  
+  #################################################
+  # note don't need to do this for dust as model 4 sensitivity check will vary pm10 continuous at each lag
+  newnode(dsc='calc_event_pm2', ttype='do',
+  notes='calc mean0-1 of this derivation',
+  i='ivan_hanigan.apportioned_{pm}_{city}',
+  o='ivan_hanigan.apportioned_{pm}_{city}_mean_0_1',
+  cod="
+  
+  #city=tolower(cities[1])
+  city
+  
+  for(pm in pm_grps[,1]){
+  print(pm)
+  #pm='pm10'
+  
+  #  
+  # first join with all the exposure days as some days at the start of the series drop off due to limit to groups with 70% of 29 days above
+  #sqlQuery(ch,paste('drop table ivan_hanigan.apportioned_',pm,'_',city,'_2',sep=''))
+  
+  sqlQuery(ch,
+  # cat(
+  paste('select t1.region, t1.date, t1.',pm,'_lag0, 
+  case when ',pm,'_continuous_background is null and t1.',pm,'_lag0 is not null then t1.',pm,'_lag0 else ',pm,'_continuous_background end as ',pm,'_continuous_background,
+  case when ',pm,'_continuous_lfs is null and t1.',pm,'_lag0 is not null then 0 else ',pm,'_continuous_lfs end as ',pm,'_continuous_lfs
+  into ivan_hanigan.apportioned_',pm,'_',city,'_2
+  from ivan_hanigan.exposures_',city,'  t1
+  left join apportioned_',pm,'_',city,' t2
+  on t1.date=t2.date',sep='')
+  )
+  
+  # now calculate the mean of lag0 and lag1 (where count() > 1)
+  #sqlQuery(ch,paste('drop table ivan_hanigan.apportioned_',pm,'_',city,'_mean_0_1',sep=''))
+  sqlQuery(ch,
+  # cat(
+  paste('select t1.region, t1.date, t1.',pm,'_lag0, t1.',pm,'_continuous_background,t1.',pm,'_continuous_lfs,
+  avg(t2.',pm,'_continuous_background) as ',pm,'_continuous_background_mean01
+  into ivan_hanigan.apportioned_',pm,'_',city,'_mean_0_1
+  from
+  (
+  select *
+  from ivan_hanigan.apportioned_',pm,'_',city,'_2
+  ) as t1,
+  (
+  select *
+  from ivan_hanigan.apportioned_',pm,'_',city,'_2
+  ) as t2
+  where t2.date between t1.date-1 and t1.date
+  group by t1.region, t1.date, t1.',pm,'_lag0, t1.',pm,'_continuous_background,t1.',pm,'_continuous_lfs
+  having count(t2.',pm,'_lag0)>1
+  order by t1.date',sep='')
+  )
+  
+  }
+  ")
+  
+  #################################################
+  #
+  newnode(dsc='calc_event_pm3', ttype='do',
+  notes='now join together with ivan_hanigan.exposures_{city}
+  Re done on 8/3/2011 to incorporate changed flu',
+  i=c('ivan_hanigan.exposures_{city}','ivan_hanigan.apportioned_{pm}_{city}_mean_0_1','ivan_hanigan.apportioned_{pm}_{city}_dust'),
+  o='ivan_hanigan.exposures_{city}_2',
+  cod="
+  
+  
+  for(city in cities){
+  # city <- cities[1]
+  dbSendUpdate(ch,paste('drop table ivan_hanigan.exposures_',city,'_2',sep=''))
+  # sqlQuery(ch,
+  # # cat(
+  # paste('SELECT t1.*, 
+  # t2.pm10_continuous_background,t2.pm10_continuous_lfs,t2.pm10_continuous_background_mean01,
+  # t3.pm25_continuous_background,t3.pm25_continuous_lfs,t3.pm25_continuous_background_mean01
+  # into ivan_hanigan.exposures_',city,'_2
+    # FROM ((ivan_hanigan.exposures_',city,' t1
+    # left join ivan_hanigan.apportioned_pm10_',city,'_mean_0_1 t2
+    # on t1.date=t2.date)
+    # left join apportioned_pm25_',city,'_mean_0_1 t3
+    # on t1.date=t3.date);',sep='')
+  # )
+  
+  # with lags
+  
+  # old work before dust addition
+  # only for perth?
+  if(city != 'Sydney'){
+  dbSendUpdate(ch,
+  # cat(
+  paste('
+  SELECT t1.*, 
+  t2.pm10_continuous_background,t2.pm10_continuous_lfs as pm10_continuous_lfs0,
+          pm10lag1.pm10_continuous_lfs as pm10_continuous_lfs1,
+          pm10lag2.pm10_continuous_lfs as pm10_continuous_lfs2,
+          pm10lag3.pm10_continuous_lfs as pm10_continuous_lfs3,
+  t2.pm10_continuous_background_mean01,
+  t3.pm25_continuous_background,t3.pm25_continuous_lfs as pm25_continuous_lfs0,
+          pm25lag1.pm25_continuous_lfs as pm25_continuous_lfs1,
+          pm25lag2.pm25_continuous_lfs as pm25_continuous_lfs2,
+          pm25lag3.pm25_continuous_lfs as pm25_continuous_lfs3,
+  t3.pm25_continuous_background_mean01
+  into ivan_hanigan.exposures_',city,'_2
+    FROM ((
+    ivan_hanigan.exposures_',city,' t1
+    left join ivan_hanigan.apportioned_pm10_',city,'_mean_0_1 t2
+    on t1.date=t2.date
+          left join ivan_hanigan.apportioned_pm10_',city,'_mean_0_1 pm10lag1
+          on t1.date=pm10lag1.date+1
+          left join ivan_hanigan.apportioned_pm10_',city,'_mean_0_1 pm10lag2
+          on t1.date=pm10lag2.date+2
+          left join ivan_hanigan.apportioned_pm10_',city,'_mean_0_1 pm10lag3
+          on t1.date=pm10lag3.date+3
+    )
+    left join ivan_hanigan.apportioned_pm25_',city,'_mean_0_1 t3
+    on t1.date=t3.date
+          left join ivan_hanigan.apportioned_pm25_',city,'_mean_0_1 pm25lag1
+          on t1.date=pm25lag1.date+1
+          left join ivan_hanigan.apportioned_pm25_',city,'_mean_0_1 pm25lag2
+          on t1.date=pm25lag2.date+2
+          left join ivan_hanigan.apportioned_pm25_',city,'_mean_0_1 pm25lag3
+          on t1.date=pm25lag3.date+3
+    );',sep='')
+   )
+  } else { 
+  # only works for sydney?
+  dbSendUpdate(ch,
+  # cat(
+  paste('
+  SELECT t1.*, 
+  t2.pm10_continuous_background,
+  pm10lag1.pm10_continuous_background as pm10_continuous_background1,
+  pm10lag2.pm10_continuous_background as pm10_continuous_background2,
+  pm10lag3.pm10_continuous_background as pm10_continuous_background3,
+  t2.pm10_continuous_lfs as pm10_continuous_lfs0,
+  pm10lag1.pm10_continuous_lfs as pm10_continuous_lfs1,
+  pm10lag2.pm10_continuous_lfs as pm10_continuous_lfs2,
+  pm10lag3.pm10_continuous_lfs as pm10_continuous_lfs3,
+  t2.pm10_continuous_background_mean01,
+  t3.pm25_continuous_background,t3.pm25_continuous_lfs as pm25_continuous_lfs0,
+  pm25lag1.pm25_continuous_lfs as pm25_continuous_lfs1,
+  pm25lag2.pm25_continuous_lfs as pm25_continuous_lfs2,
+  pm25lag3.pm25_continuous_lfs as pm25_continuous_lfs3,
+  t3.pm25_continuous_background_mean01,
+  case when lfs_pm10_lag0 > 0 and pm10pct_lag0>=.99 then t2.pm10_continuous_background else dust.pm10_continuous_background_dust end as pm10_continuous_background_dust0, 
+  dust.pm10_continuous_dust as pm10_continuous_dust0,
+  case when lfs_pm10_lag1 > 0 and pm10pct_lag1>=.99 then pm10lag1.pm10_continuous_background else dustlag1.pm10_continuous_background_dust end as pm10_continuous_background_dust1, 
+  dustlag1.pm10_continuous_dust as pm10_continuous_dust1,
+  case when lfs_pm10_lag2 > 0 and pm10pct_lag2>=.99 then pm10lag2.pm10_continuous_background else dustlag2.pm10_continuous_background_dust end as pm10_continuous_background_dust2, 
+  dustlag2.pm10_continuous_dust as pm10_continuous_dust2,
+  case when lfs_pm10_lag3 > 0 and pm10pct_lag3>=.99 then pm10lag3.pm10_continuous_background else dustlag3.pm10_continuous_background_dust end as pm10_continuous_background_dust3, 
+  dustlag3.pm10_continuous_dust as pm10_continuous_dust3
+  into ivan_hanigan.exposures_',city,'_2
+  FROM 
+  (
+          (
+          ivan_hanigan.exposures_',city,' t1
+          left join ivan_hanigan.apportioned_pm10_',city,'_mean_0_1 t2
+          on t1.date=t2.date
+          left join ivan_hanigan.apportioned_pm10_',city,'_mean_0_1 pm10lag1
+          on t1.date=pm10lag1.date+1
+          left join ivan_hanigan.apportioned_pm10_',city,'_mean_0_1 pm10lag2
+          on t1.date=pm10lag2.date+2
+          left join ivan_hanigan.apportioned_pm10_',city,'_mean_0_1 pm10lag3
+          on t1.date=pm10lag3.date+3
+          )
+          left join ivan_hanigan.apportioned_pm25_',city,'_mean_0_1 t3
+          on t1.date=t3.date
+          left join ivan_hanigan.apportioned_pm25_',city,'_mean_0_1 pm25lag1
+          on t1.date=pm25lag1.date+1
+          left join ivan_hanigan.apportioned_pm25_',city,'_mean_0_1 pm25lag2
+          on t1.date=pm25lag2.date+2
+          left join ivan_hanigan.apportioned_pm25_',city,'_mean_0_1 pm25lag3
+          on t1.date=pm25lag3.date+3
+  )
+  left join ivan_hanigan.apportioned_pm10_',city,'_dust dust
+  on t1.date=dust.date
+  left join ivan_hanigan.apportioned_pm10_',city,'_dust dustlag1
+  on t1.date=dustlag1.date+1
+  left join ivan_hanigan.apportioned_pm10_',city,'_dust dustlag2
+  on t1.date=dustlag2.date+2
+  left join ivan_hanigan.apportioned_pm10_',city,'_dust dustlag3
+  on t1.date=dustlag3.date+3
+  
+  ;',sep='')
+  )
+  }
+  
+  }
+  
+  
+  ")
+  
+  
+  #  check output for each city
+  #################################################
+  #get_data
+  ##
+  newnode(dsc='check output for each city', ttype='do',
+  i=c('ivan_hanigan.exposures_{city}_2'),
+  o='check ivan_hanigan.exposures_{city}_2',
+  code="
+  
+  # are any bushfire days missing a pm25_continuous_lfs0 due to a low number of contributing days to the 30 day moving avg?
+  
+  sqlQuery(ch,'SELECT region, date, pm25_lag0, pm25pct_lag0 ,pm25_continuous_lfs0, pm10_lag0, pm10pct_lag0 ,pm10_continuous_lfs0, pm10_continuous_background,bushfire_lag0 
+    FROM exposures_sydney_2 
+  where pm10_continuous_lfs0 =0
+  and bushfire_lag0 is not null
+  and pm10pct_lag0 >=0.99
+    order by date
+    ;')
+   
+  #In Sydney at the beginning of 1994 there was an event at the start of the monitoring period (8/1/94-13/1/94) 
+  #which means none of these days had enough days in the 30 day moving avg 
+  #therefore both pm_continuous_background and pm_continuous_lfs were set to NA 
+  namlist_for_sql=names(sqlQuery(ch,'SELECT *   FROM exposures_sydney_2 limit 1'))
+  for(nam in namlist_for_sql[grep('pm10_continuous',namlist_for_sql)]){
+  # nam = 'pm10_continuous_background'
+  sqlQuery(ch,
+  # cat(
+  paste('update exposures_sydney_2 set ',nam,' = null 
+  where date >= \'1994-01-08\' and date <= \'1994-01-13\'
+  ;')
+  )
+  }
+  
+  for(city in cities){
+  mind=sqlQuery(ch,paste('
+  select min(date)-30, min(date)+30, min(date)
+  from (SELECT region, date, pm25_lag0, pm25pct_lag0 ,pm25_continuous_lfs0, pm10_lag0, pm10pct_lag0 ,pm10_continuous_lfs0, pm10_continuous_background,bushfire_lag0 
+    FROM exposures_',city,'_2 
+  where pm25_continuous_lfs0 != 0
+    order by date) foo ;',sep=''),as.is=T)
+   
+   
+  qc=sqlQuery(ch,
+  paste('select * from ivan_hanigan.exposures_',city,'_2 where date between cast(\'',mind[,1],'\' as date) and cast(\'',mind[,2],'\' as date) ',sep='')
+  )
+  qc[,1:2]
+  
+  windows(height=8.75,width=11.25)
+  with(qc,plot(date, pm25_lag0, type='b',col='red',ylim=c(0,max(na.omit(pm25_lag0))),main=paste(city,' pm25 event ',mind[,3],sep='')))
+  with(qc,lines(date, pm25_continuous_background, col='green'))
+  with(qc,lines(date, pm25_continuous_lfs0, col='blue',lty=2))
+  legend('topleft',c('pm25_lag0','pm_continous_background','pm_continuous_lfs'),lty=rep(1,3),col=c('red','green','blue'))
+  savePlot(paste('qc/',city,' pm25 event.png',sep=''))
+  dev.off()
+  
+  #OR
+  
+  mind=sqlQuery(ch,
+  # cat(
+  paste('
+  select min(date)-30, min(date)+30, min(date)
+  from (SELECT region, date, pm25_lag0, pm25pct_lag0 ,pm25_continuous_lfs0, pm10_lag0, pm10pct_lag0 ,pm10_continuous_lfs0, pm10_continuous_background,bushfire_lag0 
+    FROM exposures_',city,'_2 
+  where pm10_continuous_lfs0 != 0
+    order by date) foo ;',sep=''),as.is=T)
+   
+  qc=sqlQuery(ch,
+  paste('select * from ivan_hanigan.exposures_',city,'_2 where date between cast(\'',mind[,1],'\' as date) and cast(\'',mind[,2],'\' as date) ',sep='')
+  )
+  qc[,1:2]
+  
+  windows(height=8.75,width=11.25)
+  with(qc,plot(date, pm10_lag0, type='b',col='red',ylim=c(0,max(na.omit(pm10_lag0))),main=paste(city,' pm10 event ',mind[,3],sep='')))
+  with(qc,lines(date, pm10_continuous_background, col='green'))
+  with(qc,lines(date, pm10_continuous_lfs0, col='blue',lty=2))
+  legend('topleft',c('pm10_lag0','pm_continous_background','pm_continuous_lfs'),lty=rep(1,3),col=c('red','green','blue'))
+  savePlot(paste('qc/',city,' pm10 event.png',sep=''))
+  dev.off()
+  }
+  
+  # and one for dust
+  mind=sqlQuery(ch,
+  # cat(
+  paste('
+  select min(date)-30, min(date)+30, min(date)
+  from (SELECT region, date, pm25_lag0, pm25pct_lag0 ,pm25_continuous_lfs0, pm10_lag0, pm10pct_lag0 ,pm10_continuous_lfs0, pm10_continuous_background,bushfire_lag0 
+    FROM exposures_',city,'_2 
+  where pm10_continuous_dust0 != 0
+    order by date) foo ;',sep=''),as.is=T)
+  
+  qc=sqlQuery(ch,
+  paste('select * from ivan_hanigan.exposures_',city,'_2 where date between cast(\'',mind[,1],'\' as date) and cast(\'',mind[,2],'\' as date) ',sep='')
+  )
+  qc[,1:2]
+  names(qc)
+  
+  windows(height=8.75,width=11.25)
+  par(mfrow=c(2,1))
+  with(qc,plot(date, pm10_lag0, type='b',col='red',ylim=c(0,max(na.omit(pm10_lag0))),main=paste(city,' pm10 event ',mind[,3],sep='')))
+  with(qc,lines(date, pm10_continuous_background_dust0, col='green'))
+  with(qc,lines(date, pm10_continuous_dust0, col='blue',lty=2))
+  legend('topleft',c('pm10_lag0','pm_continous_background_dust','pm_continuous_lfs_dust'),lty=rep(1,3),col=c('red','green','blue'))
+  # ok but what happens on a bushfire day?
+  qc=sqlQuery(ch,
+  paste('select * from ivan_hanigan.exposures_',city,'_2 where date between cast(\'1994-11-06\' as date) -30 and cast(\'1994-11-06\' as date) +28 ',sep='')
+  )
+  
+  with(qc,plot(date, pm10_lag0, type='b',col='red',ylim=c(0,max(na.omit(pm10_lag0))),main=paste(city,' pm10 event ',mind[,3],sep='')))
+  with(qc,lines(date, pm10_continuous_background, col='green'))
+  with(qc,lines(date, pm10_continuous_background_dust0, col='darkgreen'),lty=2)
+  with(qc,lines(date, pm10_continuous_lfs0, col='blue',lty=2))
+  with(qc,lines(date, pm10_continuous_dust0, col='blue',lty=1))
+  legend('topleft',c('pm10_lag0','pm_continous_background','pm_continuous_lfs'),lty=rep(1,3),col=c('red','green','blue'))
+  
+  dev.off()
+  
+  
+  ")
+  
+  ##################################################################
+  newnode(dsc='only dates with pm10 or pm25 obs',ttype='',o='ivan_hanigan.exposures_{city}_2',i='only dates with pm10 or pm25 obs',
+  notes='I had left lfs_pm25_lag0 in the exposures data as an error.  picked this up when doing biohosp. 
+  not an issue for the biomort because the get data step below is clever and creates a pm25 dataset that starts when  there were data.  but now coming back to fix in case exposures city 2 ever to be used again.
+  ',
+  code="
+  # TASK note that I have not done all the lagged exposures etc, not necessary for biohosp analysis
+  # use RpgSQL
+  source('i:/my dropbox/tools/connectDelphe.r')
+  ch <- connectDelphe()
+  
+  for(city in cities){
+  # # city <- 'sydney'
+  # # check the dataset
+  # dbGetQuery(ch,
+  # # cat(
+  # paste(
+   # 'select date, lfs_pm25_lag0, pm25_lag0  
+   # from ivan_hanigan.exposures_',city,'_2
+   # where pm25_lag0 is null and lfs_pm25_lag0 is not null
+   # limit 10
+   # ',sep='')
+   # )
+  # shows as 0 but these are null right??
+  # shows correctly in pgAdmin
+  do_city<-function(city){
+  dbSendUpdate(ch, 
+  paste(
+   'update ivan_hanigan.exposures_',city,'_2
+   set lfs_pm25_lag0 = NULL 
+   where pm25_lag0 is null
+   ',sep='')
+   )
+   }
+  
+  do_city(city='sydney')
+  do_city(city='illawarra')
+  do_city(city='newcastle')
+  do_city(city='perth')
+  # and opposite problem in perth
+  do_city<-function(city){
+  dbSendUpdate(ch, 
+  paste(
+   'update ivan_hanigan.exposures_',city,'_2
+   set lfs_pm10_lag0 = NULL 
+   where pm10_lag0 is null
+   ',sep='')
+   )
+   }
+  do_city(city='sydney')
+  do_city(city='illawarra')
+  do_city(city='newcastle')
+  do_city(city='perth')
+  }
+  
+  ")
+  
+  #################################################
+  #get_data
+  ##
+  newnode(dsc='get data', ttype='get_data',
+  i=c('-d delphe -t confidentialised_health.hanigan20090512_biomass',
+    'ivan_hanigan.exposures_{city}_2',
+    'params','only dates with pm10 or pm25 obs'),
+  o='ivan_hanigan.biomort_{city}_{disease}_{age}',
+  code="
+  
+  # because the pollutants are observed for different lenghts of time.
+  # pm_grps=matrix(c('pm10','pm25','10','5'),2,2)
+  
+  
+  # clean out old work
+  # city=cities[1]
+  # city
+  # tbls_list=sqlTables(ch)
+  # tbls_list[grep(paste('biomort_',tolower(city),sep=''),tbls_list$TABLE_NAME),3]
+  
+  # for(del_tbl in tbls_list[grep(paste('biomort_',tolower(city),sep=''),tbls_list$TABLE_NAME),3]){
+  # sqlQuery(ch,paste('drop table ivan_hanigan.',del_tbl,sep=''))
+  # }
+  
+  
+  # now do cities
+  for(city in cities[2]){
+  print(city)
+  for(dis in c(1,2,3)){
+  # dis =1
+  disease=diseases[dis]
+  codlist=codlists[dis]
+  
+  for(j in 1:2){
+  # j=1
+  pm=pm_grps[j,1]
+  pm_adj=pm_grps[j,2]
+  print(pm);print(pm_adj)
+  for(i in 1){ # c(2,3)){ # NB just do allages here because the models scripts break it up by age on the R server.
+  #1:length(agegrps)){
+  # i=1
+  
+  age=agegrps[i]
+  print(age)
+  agegrp=agegrp_code[i]
+  print(agegrp)
+  print(disease)
+  print(codlist)
+  print(city)
+  
+  # set up the exposures names
+  namlist=names(sqlQuery(ch,paste('select * from ivan_hanigan.exposures_',city,'_2 limit 1',sep='')))
+  data.frame(
+  namlist[grep(pm,namlist)]
+  )
+  
+  # construct SQL
+  # cat(paste('t2.',namlist[grep(pm,namlist)],',',sep='',collapse='\\n'))
+  # #and no-events
+  # cat(paste('case when t2.',namlist[grep(pm,namlist)],' =1 then 0 else 1 end as ',namlist[grep(pm,namlist)],'_no_event,',sep='',collapse='\\n'))
+  
+  # sqlQuery(ch,paste('drop table ivan_hanigan.biomort_',city,'_',disease,'_',age,'_',pm,sep=''))
+  
+  sqlQuery(ch,
+  # cat(
+  paste('
+  select t1.studysite, cast(t1.id as numeric), sex,
+          case when t2.date = t1.dthdate then \'1\' else \'0\' end as caseday, 
+          t2.date, extract(year from t2.date) as year, extract(month from t2.date) as month,',
+          paste('t2.',namlist[grep(pm,namlist)],',',sep='',collapse='\n'),
+          paste('case when t2.',namlist[grep(paste('lfs',pm,sep='_'),namlist)],' =1 then 0 else 1 end as ',namlist[grep(paste('lfs',pm,sep='_'),namlist)],'_no_event,',sep='',collapse='\n'),
+          pm,'_lag0 /',pm_adj,' as ',pm,'_',pm_adj,'_lag0,',
+          pm,'_lag1 /',pm_adj,' as ',pm,'_',pm_adj,'_lag1,',
+          pm,'_lag2 /',pm_adj,' as ',pm,'_',pm_adj,'_lag2,',
+          pm,'_lag3 /',pm_adj,' as ',pm,'_',pm_adj,'_lag3,',
+          pm,'_mean_lag_0_1 /',pm_adj,' as ',pm,'_',pm_adj,'_mean_lag_0_1,',
+          pm,'_mean_lag_0_3 /',pm_adj,' as ',pm,'_',pm_adj,'_mean_lag_0_3,        
+          t2.temperature,
+          t2.temp_lag,
+          t2.dewpt,
+          t2.dew_lag,
+          case when t2.flu = \'1\' then 1 else 0 end as flu,
+          o3_max,
+          cod,
+          case when (t1.dthage >= 65 and t1.dthage <200) then \'65plus\'                  
+                  when (t1.dthage < 65 or (t1.dthage >=200 and t1.dthage <999)) then \'under65\' end as agegrp,
+          case when (t1.dthage >=202 and t1.dthage <=211) then \'under1\' end as under1,
+          t1.dthage
+  into ivan_hanigan.biomort_',city,'_',disease,'_',age,'_',pm,'                   
+  from    (
+          select cast(nceph_autonum as text) || cast(regyy as text) as id, 
+                  case when studysite like \'Sydney%\' then \'Sydney\' else studysite end as studysite
+                  ,sex, dthage, cod, dthdate,     
+                  extract(dow from dthdate) as day, dthmm         
+          from confidentialised_health.hanigan20090512_biomass    
+          where dthyy >1993 and studysite like \'',city,'%\'
+          ) as t1   
+  join (
+          select dates.date as fulldatelist,polls.*  
+          from (
+                  select distinct date 
+                  from pollution.stationdates_',city,'_',pm,' 
+                  order by date
+                  ) dates
+          left join ivan_hanigan.exposures_',city,'_2 polls
+          on dates.date=polls.date
+          order by dates.date
+  ) as t2  
+          on t1.studysite=t2.region and  
+          t1.day=extract(dow from t2.date) and 
+          t1.dthmm=extract(month from t2.date) and 
+          extract(year from t1.dthdate)=extract(year from t2.date)
+  where (',agegrp,') 
+  and (',codlist,') 
+  order by id,t1.dthdate, t2.date;',sep='')
+  )
+  
+  }
+  }
+  }
+  }               
+  
+  ")
+  
+  #####################################################################
+  #check totals
+  newnode(dsc='check totals and last few months for under-reporting', ttype='check totals',
+  i=c('ivan_hanigan.biomort_{city}_{disease}_{age}'),
+  o='ivan_hanigan.biomort_{city}_{disease}_{age}_checked',
+  code="
+  #
+  for(j in 1:2){
+  pm=pm_grps[j,1]
+  print(paste(city,'_',disease,'_',age,'_',pm,sep=''))
+  
+  print(sqlQuery(ch,
+  # cat(
+  paste('select year, sum(cast(caseday as numeric)) from ivan_hanigan.biomort_',city,'_',disease,'_',age,'_',pm,' group by year order by year;',sep='')
+  )
+  )
+  }
+  
+  par(mfrow=c(2,1))
+  for(j in 1:2){
+  
+  pm=pm_grps[j,1]
+  
+  print(pm)
+  
+  qc=sqlQuery(ch,
+  # cat(
+  paste('SELECT studysite, date,sum(cast(caseday as numeric))
+    FROM ivan_hanigan.biomort_',city,'_',disease,'_',age,'_',pm,'
+    group by studysite,date
+    order by date;',sep='')
+    )
+  
+  plot(qc$date,qc$sum,type='l',col='grey')
+  lines(lowess(qc$date,qc$sum,f=.05))
+  }
+  
+  dev.off()
+  # NB there is a mortality blip in March 25 and 31 2007
+  # TASK create dummy variable in modelling code for this. then come back and check after hearing from NSW registrar/ABS
+  
+  # assess the last months
+  plot(qc[(nrow(qc)-90):nrow(qc),'date'] ,qc[(nrow(qc)-90):nrow(qc),'sum'],type='l')
+  
+  
+  # check the 97-98 revised data
+  # especially the heatwave  in perth on 26/2/97
+  
+  qc=sqlQuery(ch,
+  # cat(
+  paste('SELECT studysite, date,sum(cast(caseday as numeric)), temperature, pm25_lag0,flu,pm25pct_lag0
+    FROM ivan_hanigan.biomort_perth_allcause_allages_pm25
+    where date  between \'1997-01-01\' and \'1997-04-01\'
+    group by studysite,date, temperature, pm25_lag0, flu,pm25pct_lag0
+    order by date;',sep='')
+    )
+  
+  par(mfrow=c(4,1),mar=c(3,2,2,1))
+  plot(qc$date,qc$sum,type='l',col='darkgrey',main='deaths')
+  points(qc$date,qc$sum,col='darkgrey',pch=16)
+  lines(lowess(qc$date,qc$sum,f=.15))
+  plot(qc$date,qc$temperature,col='red',main='max t',type='l')
+  plot(qc$date,qc$pm25_lag0,col='green',type='l',main='pm2.5')
+  plot(qc$date,qc$flu,type='h',col='blue',main='flu')
+  savePlot('qc/perth_heatwave.jpg',type=c('jpg'))
+  dev.off()
+  
+  # sqlQuery(ch,
+  # # cat(
+  # paste('select * from
+  # (
+  # select studysite,dthyy,dthmm, count(*)
+  # from confidentialised_health.hanigan20090512_biomass
+  # where studysite like \',town,'%\'
+  # and dthyy >= extract(year from cast(\\'1997-05-23\\' as date))
+  # and ((cod < ') or (cod Between ' and '))
+  # group by studysite,dthyy,dthmm
+  # order by dthyy, dthmm
+  # ) origmort
+  # join
+  # (
+  # select extract(year from date) as year, extract(month from date) as month, sum(cast(caseday as numeric)) 
+  # from biomort_perth_allcause_allages
+  # group by extract(year from date), extract(month from date)
+  # order by extract(year from date), extract(month from date)
+  # ) out
+  # on origmort.dthyy=out.year and origmort.dthmm=out.month',sep='')
+  # )
+  
+  ")
+  
+  
+  ###########################################################################################
+  
+  newnode(dsc = 'check pm and events', ttype='check pm and events',
+  notes='fay says Ivan Im amazed that the pM10 and PM2.5 binary event model has such different outcomes. Surely the bushfire days datasets would have been very similar?
+  For Sydney can you tell me how similar or different the LFS days were for PM10 and PM2.5? ie were 90% of the days the same or just 50%',
+  i=c('ivan_hanigan.exposures_{city}_2'),
+  o='exposures_{city}_2_checked',
+  code="
+  
+  
+  ")
+  
+  ###########################################################################################
+  #export data
+  
+  
+  ##
+  newnode(dsc='export data to csv',ttype='get_data',
+  i='ivan_hanigan.biomort_{city}_{disease}_{age}',
+  o='{city}_{disease}_{age}.csv',
+  notes="DEATHS ARE EXCLUDED FROM DECEMBER IN THE LAST YEAR DUE TO UNDERCOUNTS!
+  because some are huge tables ie sydney allcause allage, then extract using COPY to CSV see code in extraction_transformations.r master script",
+  code="
+  #NOT RUN
+  # write.table(sqlQuery(ch,
+  #       paste('select * from ivan_hanigan.biomort_',city,'_',disease,'_',age,' where date >= ' and date < '')
+  #       ,as.is=F),
+  #       paste(city,'_',disease,'_',age,'.csv',sep=''),
+  #       row.names=F,sep=',')
+          
+  
+  
+  
+  
+  # pm=pm_grps[j,1]
+  
+  # print(pm)
+  
+  # NOT RUN, NEED TO QUERY WITH < DEC 2007 in wa and july 2007 in nsw
+  # sink('extract.bat')
+  # cat(paste('\'C:\\Program Files\\PostgreSQL\\8.3\\bin\\psql\' -h 130.56.102.30 -d weather -U ivan_hanigan -c \'COPY ' TO STDOUT WITH CSV HEADER;\' > \'J:\\NCEPH_Datasets\\Restricted\\Restricted_Data_Requests\\AMD\\2008\\Hanigan200804\\extraction\\biomort_',tolower(city),'_',disease,'_',age,'_',pm,'.csv\'',sep=''))
+  # sink()
+  # shell('extract.bat')
+  # file.remove('extract.bat')
+  # }
+  #
+  ## or
+  #  THIS ONE SELECTS OUT WHERE DEATHS LESS THAN DECEMBER
+  
+  
+  
+  #################################################################################
+  for(city in cities[2]){
+  print(city)
+  for(dis in c(1)){
+  # dis=1
+  disease=diseases[dis]
+  codlist=codlists[dis]
+  
+  print(paste(city,'_',disease,sep=''))
+  
+   for(j in 1:2){
+  # j=2
+  pm=pm_grps[j,1]
+  
+  
+  print(pm)
+  dir.create(tolower(city),showWarnings=F)
+  dir(paste('J:\\NCEPH_Datasets\\Restricted\\Restricted_Data_Requests\\AMD\\2008\\Hanigan200804\\extraction\\',city,sep=''))
+  for(i in c(1)){ # 1:3){#length(agegrps)){
+  ##
+  #i=1
+  age=agegrps[i]
+  print(age)
+  agegrp=agegrp_code[i]
+  print(agegrp)
+  if(city!='PERTH'){
+  maxdate_city='2007-07-01' 
+  } else {
+  maxdate_city='2007-12-01'
+  }
+  print(maxdate_city)
+  
+  sink('extract.bat')
+  cat(paste('\"C:\\Program Files\\PostgreSQL\\8.3\\bin\\psql\" -h 130.56.102.30 -d delphe -U ivan_hanigan -c \"COPY (select * from ivan_hanigan.biomort_',tolower(city),'_',disease,'_',age,'_',pm,' where date < \'',maxdate_city,'\') TO STDOUT WITH CSV HEADER;\" > \"J:\\NCEPH_Datasets\\Restricted\\Mortality Data\\ACCESS\\2008\\Hanigan200804\\extraction\\',city,'\\biomort_',tolower(city),'_',disease,'_',age,'_',pm,'.csv\"',sep=''))
+  sink()
+  system('extract.bat')
+  file.remove('extract.bat')
+  
+   }
+   }
+   }
+   }
+   
+  ")
+  
+  #################################################################
+  newnode(dsc = 'The end', ttype = 'reports', 
+  dontshow = T,
+  append = T,
+  document='sweave',
+  end_doc = T)
+  
+  # "i:\my dropbox\tools\transformationscolour.py"  extraction_transformations.txt   extractiontransformations
+  
+  
+  
+  
+  # #####################################################
+  # #     END EXTRACTION STEPS
+  
+  # #" check some output
+  # qc=read.table(paste(city,'\\biomort_',tolower(city),'_',disease,'_',age,'_',pm,'.csv',sep=''),sep=',',header=T)
+  # qc$date=as.Date(qc$date)
+  # max(qc$date)
+  # # june for nsw and nov for wa
+  # str(qc)
+  # sums=aggregate(qc$caseday, by=list(qc$date),"sum")
+  # ds=names(table(qc$date))
+  # plot(sums,type='l',col='grey')        
+  # lines(lowess(sums,f=0.01))
+  # tail(sums)
+  
+  # #syd too big?
+  # dats=names(table(qc$date))
+  # dats=as.Date(dats)
+  # max(dats)
+  
+  # # qc3=sqldf('select date, sum(caseday) from qc group by date order by date')
+  # # head(sums)
+  # # qc3$date=as.Date(qc3$date)
+  # # head(qc3[order(qc3$date),])
+  
+  # ##################
+  # # MOVE TO Z AND USE IN  MODELS.
+  # newnode(dsc = "MOVE TO Z AND USE IN  MODELS.", ttype = "get_data", i = '{city}_{disease}_{age}.csv', o = "Z models", notes = "")
+  
+  
+  # ###################
+  # # move to dropbox"
+  
+  # 'Z:\lfs_pm10\sydney\allcause\allages'
+  
+  # pm_event_type='lfs'
+  
+  # for(pm in c('pm25','pm10')){ #,'pm25'){
+  # # pm='pm10'
+  
+  # # if(pm == 'pm10') {
+          # # pm_adj=10
+          # # } else {
+          # # pm_adj=5
+          # # }
+  
+  # for(city in tolower(cities[2])){ # ,"newcastle","illawarra")){
+  # # city=tolower(cities[1])
+  
+  # for (disease in c("allcause", "cvd" ,"resp")){ # 
+  # # disease=diseases[1]
+  
+  # for( age in agegrps[1:3]){
+  # # age=agegrps[1]
+  
+  
+  # outdir='\\\\ncephsrv03\\u3171954$\\My Documents\\My Dropbox\\Biomort_Results'
+  # dir.create(paste(outdir,'/',pm_event_type,'_',pm,'/',city,'/',disease,'/',age,sep=''),recursive=T)
+  
+  # indir=paste('Z:/',pm_event_type,'_',pm,'/',city,'/',disease,'/',age,sep='')
+  # fillist=dir(indir)
+  # fillist=fillist[grep('\\.',fillist)]
+  # # not the csv of counts
+  # fillist=fillist[-c(grep('csv',fillist))]
+  # for(fi in fillist){
+  # # fi = fillist[1]
+  # file.copy(from=paste(indir,fi,sep='/'),to=paste(outdir,'\\',pm_event_type,'_',pm,'\\',city,'\\',disease,'\\',age,'\\',fi,sep=''))
+  # }
+  
+  # thresh='0.95'
+  # for(sx in c('total_mf',1,2)){
+  # # sx = 'total_mf'
+  
+  # sex=paste('sex',sx,sep='')
+  
+  
+          # for(i in c(1,3,4)){
+          # # i=1
+          # fillist=dir(paste(indir,'/model',i,'/',thresh,'/',sex,sep=''))
+          # dir.create(paste(outdir,'/',pm_event_type,'_',pm,'/',city,'/',disease,'/',age,'/model',i,'/',thresh,'/',sex,sep=''),recursive=T)
+  
+                  # for(j in 1:length(fillist)){
+                  # # j=1
+                  # fi=fillist[j]
+                  # file.copy(from=paste(indir,'/model',i,'/',thresh,'/',sex,'/',fi,sep=''),
+                          # to=paste(outdir,'\\',pm_event_type,'_',pm,'\\',city,'\\',disease,'\\',age,'\\model',i,'\\',thresh,'\\',sex,'\\',fi,sep='')
+                          # )
+                  # }
+  
+          # }
+  # if(thresh=='0.95') break
+  
+          # for(i in c(2)){
+          # # i=2
+          # fillist=dir(paste(indir,'/model',i,'/',sex,sep=''))
+          # dir.create(paste(outdir,'/',pm_event_type,'_',pm,'/',city,'/',disease,'/',age,'/model',i,'/',sex,sep=''),recursive=T)
+  
+                  # for(j in 1:length(fillist)){
+                  # # j=1
+                  # fi=fillist[j]
+                  # file.copy(from=paste(indir,'/model',i,'/',sex,'/',fi,sep=''),
+                          # to=paste(outdir,'\\',pm_event_type,'_',pm,'\\',city,'\\',disease,'\\',age,'\\model',i,'\\',sex,'\\',fi,sep='')
+                          # )
+                  # }
+          # }
+  # }
+  # }
+  # }
+  # }
+  # }
+  
+#+end_src
+
