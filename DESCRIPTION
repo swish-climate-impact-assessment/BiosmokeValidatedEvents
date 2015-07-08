@@ -9,7 +9,9 @@ Authors@R:
 Maintainer: ivanhanigan <ivan.hanigan@gmail.com>
 Description: This package contains a source for the Australian Biomass Smoke Validated Events Database.
 Suggests:
-    rpostgresql
+    rpostgrestools,
+    knitr,
+    rmarkdown
 License: CC BY 4.0
 LazyData: true
 VignetteBuilder: knitr
