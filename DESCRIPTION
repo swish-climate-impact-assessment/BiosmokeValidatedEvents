@@ -1,0 +1,15 @@
+Package: BiosmokeValidatedEvents
+Title: an R Package to reproduce the extreme biomass smoke event database
+Version: 0.1
+Date: 2015-07-08
+Authors@R:
+    c(person("Ivan","Hanigan",role=c("aut","cre"),email="ivan.hanigan@gmail.com"),
+    person("Fay", "Johnston", email = "fay.johnston@gmail.com", role = "ctb", comment = "Conceptual design"), 
+    person("Geoff", "Morgan", email = "geoff.morgan@gmail.com", role = "ctb", comment = "Methods"))
+Maintainer: ivanhanigan <ivan.hanigan@gmail.com>
+Description: This package contains a source for the Australian Biomass Smoke Validated Events Database.
+Suggests:
+    rpostgresql
+License: CC BY 4.0
+LazyData: true
+VignetteBuilder: knitr

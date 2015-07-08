@@ -6,9 +6,9 @@
 #+LATEX: \tableofcontents
 -----
 
-*** biomort extraction script (full of details)
+* biomort extraction script (full of details)
 head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extraction_overview.r
-**** head
+** head
 #+begin_src R :session *R* :tangle no :exports none :eval no
   
   #################################################################
@@ -46,7 +46,7 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   
   
 #+end_src
-**** func
+** func
 #+begin_src R :session *R* :tangle no :exports none :eval no
   
   #################################################################
@@ -95,7 +95,7 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   
   ")
 #+end_src
-**** params
+** params
 #+begin_src R :session *R* :tangle no :exports none :eval no
   
   #################################################################
@@ -106,7 +106,7 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   code="
   ")
 #+end_src
-**** spatial
+** spatial
 #+begin_src R :session *R* :tangle no :exports none :eval no
   
   #################################################################
@@ -120,6 +120,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   biomass_study_slas=sqlQuery(bio,'select * from health.study_slas')
   sqlSave(res,biomass_study_slas)
   ")
+#+end_src
+** orig mortality 
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   #################################################################
   #orig mortality
@@ -145,6 +148,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
            and regyy>1993 and (dthyy>1993 and dthyy<9999 and studysite not like ' and studysite not like ');
   ')
   ")
+#+end_src
+** mort qc checks
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   #################################################################
   #mortality
@@ -241,6 +247,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   #
   #
   ")
+#+end_src
+** mort transfer rest to delphe
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   #################################################################
   newnode(dsc='transfer_mortality', ttype='load', 
@@ -259,7 +268,10 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   grant_access('confidentialised_health.hanigan20090512_biomass','ivan_hanigan',host='super_ivan')
   
   ") 
-  
+#+end_src
+** mort qc 2
+#+begin_src R :session *R* :tangle no :exports none :eval no
+
   #################################################################
   newnode(dsc='qc_transferred_mortality', ttype='load',
   i=c('-d delphe -t confidentialised_health.hanigan20090512_biomass'),
@@ -311,7 +323,10 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   
   ")
   
-  
+#+end_src
+** Manually validate events using news or internet
+#+begin_src R :session *R* :tangle no :exports none :eval no
+
   ###########
   newnode(dsc='RA', ttype='load',
   i=c('pollution'),
@@ -320,12 +335,18 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   
   ")
   
+#+end_src
+** discriminate multiple event types
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   ###########
   newnode(dsc='discriminate multiple types', ttype='load',
   i='multiple eventtype checks',
   o='single eventtypes'
   )
+#+end_src
+** combined pollutants
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   #combined pollutants
   
@@ -334,11 +355,17 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   notes="
   M:/Environmental_Health/Bushfires/Exposures
   ")
+#+end_src
+** imputed
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   #imputed
   newnode(dsc='imputed',ttype='load',
   o=c('imputed'),
   notes="I:/projects/1.302 Biomass/analysis/exposures/event validation/impute/load.r and todo.r'")
+#+end_src
+**  pollutants
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   #pollution
   newnode(dsc='pollution', ttype='load',
@@ -350,6 +377,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   ")
   
   #PM
+#+end_src
+** full list of dates
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   ###########
   newnode(dsc='full list of dates', ttype='load',
@@ -443,6 +473,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   # I:\My Dropbox\projects\1.302 Biomass\analysis\mortality\Biomort_Results\summaryTables\table1\Table1andFigs.r
   
   ")
+#+end_src
+** reshape wide
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   ###########
   newnode(dsc='reshape wide, one column each', ttype='load',
@@ -492,6 +525,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   
   ")
   
+#+end_src
+** check remaining 99 percentile dates with no refs using TOMS
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   ###########
   newnode(dsc='check the remaining 99% centile days with no refs using TOMS',ttype='load',
@@ -569,6 +605,10 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   
   #}
   #"
+#+end_src
+** check single eventtypes
+#+begin_src R :session *R* :tangle no :exports none :eval no
+
   ###########
   newnode(dsc='check the ones shown as single eventtypes',
   ttype='load',
@@ -597,6 +637,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
       (date >= \'2004-02-01\' AND date <= \'2004-02-21\' )')
   
   ")
+#+end_src
+** check dust
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   
   ##########################################################################################
@@ -623,6 +666,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   \")
   
   ")
+#+end_src
+** go mort
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   ##########################################################################################
   newnode(dsc='go',ttype='go',
@@ -665,6 +711,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   
   #do
   
+#+end_src
+** subset PM to city
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   
   #subset PM to city
@@ -753,6 +802,11 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   notes=' #I:/projects/1.302 Biomass/analysis/exposures/event validation/quality_control/do20100217.R
                   #I:/projects/1.302 Biomass/analysis/exposures/event validation/quality_control/do.r
                   #I:/projects/1.302 Biomass/analysis/exposures/event validation/Manual Validation/summaryTables/table1/Table1_20100215.r')
+
+#+end_src
+** weather
+#+begin_src R :session *R* :tangle no :exports none :eval no
+
   ##########################################
   #weather
   
@@ -930,6 +984,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   #
           
   ")
+#+end_src
+** flu
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   #flu
   newnode(dsc='load flu data, calc epi', ttype='do',
@@ -1215,6 +1272,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   
   ")
   
+#+end_src
+** ozone
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   #########"
   newnode(dsc='ozone', ttype='do',
@@ -1228,6 +1288,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   with(qc,plot(date,o3_max,type='l'))
   dev.off()
   ")
+#+end_src
+** standard covariates
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   ###########################"
   #standard covariates
@@ -1268,6 +1331,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   }
   
   ")
+#+end_src
+** join exposures
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   #########################################"
   #join exposures
@@ -1456,6 +1522,9 @@ head/projects/Biomass/analysis/bio_mort_analysis/data/extraction_overview/extrac
   }
   
   ")
+#+end_src
+** calcu pm continuous background and etc etc
+#+begin_src R :session *R* :tangle no :exports none :eval no
   
   #################################################
   #" 

@@ -8,7 +8,7 @@
 * Compared
 ** COMMENT compared-code
 #+name:compared
-#+begin_src R :session *shell* :tangle no :exports none :eval no
+#+begin_src R :session *R* :tangle no :exports none :eval no
   #### name:compared ####
   # One archive is 
   dir1 <- "/media/external/ivan_acer/projects/1.302 Biomass/analysis/exposures/event validation"
@@ -24,63 +24,99 @@
  Physical Distribution:
  u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures/event validation/impute
 ** COMMENT load.r
-#+name:loadw.r
-#+begin_src R :session *shell* :tangle no :exports none :eval no
+*** func
+#+begin_src R :session *R* :tangle load.r :exports none :eval no
   #################################################################
-  # I:/b_projects/1.302 Biomass/exposures/impute/workspace.R
-  # author:
-  # ihanigan
-  # date:
-  # 2009-10-27
-  # description:
-  # impute the biomass smoke pm
-  #################################################################
-  
-  # changelog
-  # 20100622      NOT DONE AS FOUND ALREADY IN DELPHE modified to put it back into delphe 
-  # 20100407      changed to bio (post collapse) and calc perth, newc wollong
-   
-  require( RODBC )
-  require( R2HTML )
+  projectdir <- "~/data/BiosmokeValidatedEvents"
+  setwd(projectdir)
+  library(rpostgrestools)
+  require(R2HTML)
   require(maptools)
-  source('i:/tools/load2postgres.r')
-  ch=odbcConnect("delphe")
+  
+  
+  pgpass <- get_passwordTable()
+  pgpass
+  postgis_ipaddress <- pgpass$V1[pgpass$V3 == "ewedb"]
+  user = "ivan_hanigan"
+  db = "ewedb"
+  pwd = readline("what is your password: ")
+  ch <- connect2postgres(postgis_ipaddress, db, user, pwd)
+  
+#+end_src
+*** Get local copy of spatial data for cities.
+#+begin_src R :session *R* :tangle 02_get_city_shapefile.R :exports none :eval no
+
   
   #################################################################
   # functions
-  cleanup_shp=function(town){
+  cleanup_shp <- function(town){
           file.remove(paste(town,".shp",sep=""))
           file.remove(paste(town,".shx",sep=""))
           file.remove(paste(town,".dbf",sep=""))
           }
   #################################################################
+    
   
   ## get city shapefile out for plotting in R
-  towns=c("PERTH", "Sydney","Illawarra","Lower Hunter","Hobart","Launceston")
+  towns <- c("PERTH", "Sydney","Illawarra","Lower Hunter","Hobart","Launceston")
   
   
-  ## this is messy, I haven't figured out how to feed the spatial data straight thru from postgres yet
-  ## it has something to do with Rgdal and the driver on windows
-  
-  ## this workaround utilises the pgsql2shp tool that is installed with postgres
+  ## On windoze the rgdal and GDAL installation does not include PostGIS driver to feed the spatial data straight thru from postgres   
+  ## this workaround utilises the pgsql2shp tool that is installed with postgres, or available from 
+  ## this website: 
   
   # get the CCDs
-  town=towns[2]
+  town<- towns[2]
   #  for Illawarra  ='Wollongong' and Lower Hunter = 'Newcastle'
   #town='Newcastle'
-  ste=1#5
-  statenam='nsw'
-  ## within urban boundary
+  ste<- 1#5
+  statenam<- 'nsw'
+  ## TODO, we had to decide if we would use all CCD within the urban
+  ## boundary or within a distance of the centroid
   #sink("dopgshp.bat")
-  #cat(paste("\"C:\\Program Files\\PostgreSQL\\8.3\\bin\\pgsql2shp\" -f \"",town,"\" -h 130.56.102.30 -u ivan_hanigan -P trojan9! weather \"select t1.* from abs_cd.",statenam,"cd06 t1, abs_ucl.ausucl01 t2 where st_contains(t2.the_geom,st_centroid(t1.the_geom)) and (t2.ste = ",ste," and upper(t2.ucl_name) like '",toupper(town),"%')\"",sep=""))
+  #cat(paste("\"C:\\Program Files\\PostgreSQL\\8.3\\bin\\pgsql2shp\" -f \"",town,"\" -h ",postgis_ipaddress," -u ivan_hanigan -P ",passphrase," weather \"select t1.* from abs_cd.",statenam,"cd06 t1, abs_ucl.ausucl01 t2 where st_contains(t2.the_geom,st_centroid(t1.the_geom)) and (t2.ste = ",ste," and upper(t2.ucl_name) like '",toupper(town),"%')\"",sep=""))
   #sink()
-  ## or within distance
+  ## going with the within distance
+  layer = paste(tolower(town), "_shapefile", sep  = "")
+  layer
+  sql <- paste("select t1.*
+    into ",user,".",layer,"
+    from abs_sla.",statenam,"sla06 t1,
+    abs_ucl.ausucl01 t2
+    where st_dwithin(st_centroid(t2.geom),st_centroid(t1.geom),0.5) and
+    (t2.ste = ",ste," and upper(t2.ucl_name) like '",toupper(town),"%')"
+    , sep = "")
+  
+  cat(sql)
+  dbSendQuery(ch, sql)
+  
+  os <- LinuxOperatingSystem()
+  if(os){
+  library(rgdal)
+  shp <- readOGR(sprintf('PG:host=%s
+                           user=%s
+                           dbname=%s
+                           password=%s
+                           port=5432',postgis_ipaddress,user,db,pwd),
+                           layer=layer)
+  #plot(shp)
+  setwd("data")
+  writeOGR(shp, ".", layer, driver = "ESRI Shapefile")
+  } else {
+  # TODO this is all really hard-wired to my own set up back in 2010.
+  # I now use Linux exclusively for this type of work, so the below is
+  # broken and I won't fix it sorry.
+  txt <- paste("\"C:\\Program Files\\PostgreSQL\\8.3\\bin\\pgsql2shp\" -f \"",town,"\" -h ",postgis_ipaddress," -u ",user," -P ",passphrase," weather \"select * from ",layer,"\"",sep="")
+  
   sink("dopgshp.bat")
-  cat(paste("\"C:\\Program Files\\PostgreSQL\\8.3\\bin\\pgsql2shp\" -f \"",town,"\" -h 130.56.102.30 -u ivan_hanigan -P trojan9! weather \"select t1.* from abs_sla.",statenam,"sla06 t1, abs_ucl.ausucl01 t2 where st_dwithin(st_centroid(t2.the_geom),st_centroid(t1.the_geom),0.5) and (t2.ste = ",ste," and upper(t2.ucl_name) like '",toupper(town),"%')\"",sep=""))
+  cat(txt)
   sink()
-  shell("dopgshp.bat")
+  system("dopgshp.bat")
   file.remove("dopgshp.bat")
-  townshp = readShapePoly(paste(town,".shp",sep=""))
+  
+  }
+  
+  townshp <-  readShapePoly(paste(layer,".shp",sep=""))
   
   town
   
@@ -89,22 +125,39 @@
   #townshp_illawarra=townshp
   #townshp_hunter=townshp
   
-  cleanup_shp(town=town)
+  #cleanup_shp(town=town)
   
   plot(townshp, lwd=1, border="darkgrey")
   box();axis(1);axis(2)
-  
+#+end_src
+*** Get local copy of spatial data for pollution stations
+#+begin_src R :session *R* :tangle 03_get_city_stations.R :exports none :eval no
+    
   # now get the pollution stations
-  town=towns[2]
+  #town=towns[2]
   print(town)
+  layer  <- paste("sites_", tolower(town), sep  = "")
+  txt <- paste("select t1.*, t2.studysite as region2
+    into ",user,".",layer,"
+    from spatial.pollution_stations_combined_final t1,
+    health.study_slas_01 t2
+    where st_intersects(t1.gda94_geom,t2.the_geom) and
+    upper(region) like '",toupper(town),"%'"
+               , sep = "")
+  cat(txt)
+  
+  
+  
+  
+  txt2 <- paste("\"C:\\Program Files\\PostgreSQL\\8.3\\bin\\pgsql2shp\" -f \"",town,"\" -h ",postgis_ipaddress,"  -u ",user,"  -P ",passphrase," biomass \"select * from ",layer,"\"", sep="")
   sink("dopgshp.bat")
-  cat(paste("\"C:\\Program Files\\PostgreSQL\\8.3\\bin\\pgsql2shp\" -f \"",town,"\" -h db7.anu.edu.au -u ivan_hanigan -P trojan9! biomass \"select t1.*,t2.studysite as region2 from spatial.pollution_stations_combined_final t1 ,health.study_slas_01 t2 where st_intersects(t1.gda94_geom,t2.the_geom) and upper(region) like '",toupper(town),"%'\"",sep=""))
+  cat(txt2)
   sink()
   #
-  shell("dopgshp.bat")
+  system("dopgshp.bat")
   file.remove("dopgshp.bat")
-  sites=readShapePoints(paste(town,".shp",sep=""))
-  cleanup_shp(town=town)
+  sites <- readShapePoints(paste(town,".shp",sep=""))
+  #cleanup_shp(town=town)
   
   town
   
@@ -114,26 +167,36 @@
   #sites_hunter=sites
   
   sink("dopgshp.bat")
-  cat(paste("\"C:\\Program Files\\PostgreSQL\\8.3\\bin\\pgsql2shp\" -f \"",town,"\" -h 130.56.102.30 -u ivan_hanigan -P trojan9! weather \"select * from public.oz_coast\"",sep=""))
+  cat(paste("\"C:\\Program Files\\PostgreSQL\\8.3\\bin\\pgsql2shp\" -f \"",town,"\" -h ",postgis_ipaddress," -u ivan_hanigan -P ",passphrase," weather \"select * from public.oz_coast\"",sep=""))
   sink()
   #
-  shell("dopgshp.bat")
+  system("dopgshp.bat")
   file.remove("dopgshp.bat")
   coast = readShapeSpatial(paste(town,".shp",sep=""))
   cleanup_shp(town=town)
   
-  
+#+end_src
+*** setup list of pollutants
+#+begin_src R :session *R* :tangle load.r :exports none :eval no
+    
   
   #################################################################
   
   # list pollutants
-  polls=cbind(c("sulphurdioxide_pphm","nitrogendioxide_pphm","carbonmonoxide_ppm","ozone_pphm","particulatematter10um_ugm3","nephelometer_bsp", "particulatematter2_5um_ugm3", "nitricoxide_pphm"),
-  c("hrlyso2","hrlyno2","hrlyco" ,    "hrlyo3", "hrlypm10", "hrlybsp",  "hrlypm25",  "hrlyno"),
-  c("SO2","NO2","CO","O3","PM10","BSP","PM25","NO"))
+  polls <- cbind(c("sulphurdioxide_pphm","nitrogendioxide_pphm",
+                   "carbonmonoxide_ppm","ozone_pphm","particulatematter10um_ugm3",
+                   "nephelometer_bsp", "particulatematter2_5um_ugm3", "nitricoxide_pphm"),
+                 c("hrlyso2","hrlyno2","hrlyco" ,    "hrlyo3", "hrlypm10", "hrlybsp",
+                   "hrlypm25",  "hrlyno"),
+                 c("SO2","NO2","CO","O3","PM10","BSP","PM25","NO")
+                 )
   polls
   
-  (poll=polls[4,3]) 
-  
+  (poll <- polls[4,3]) 
+#+end_src
+*** missing dates are added for completeness
+#+begin_src R :session *R* :tangle load.r :exports none :eval no
+    
   #################################################################
   # to identify sites to be included need to know how many missing days.
   # first create complete set of statoiondates for the sites per town
@@ -143,7 +206,7 @@
   # note o3 only done for towns[1:4]
   # then just limit to [5] and so o3 fails, then [6] and o3 fails, allgood
   for(town in towns[4]){
-  # town=towns[4]
+   town=towns[4]
   # for hunter make it newcastle
           if( town == "Lower Hunter"){
           town='Newcastle'
@@ -151,8 +214,8 @@
   # town=towns[2]
   print(town)
   
-  
-  mindates=sqlQuery(ch,
+  # TODO it would be better to refactor this into a function that does the town/pollutant combo several times rather than this combined query doing same thing 3 times
+  mindates <- dbGetQuery(ch,
   # cat(
   paste('select t1.r2, min(t1.date) as minpm10,min(t2.date) as minpm25
   from
@@ -195,8 +258,8 @@
           order by r2, date) t2
           group by t1.r2',sep='')
           )
-  
-  o3mindate=sqlQuery(ch,
+  # and this on is seperate because it fails in towns without o3  
+  o3mindate<- dbGetQuery(ch,
   # cat(
   paste('select t1.r2, min(t1.date) as mino3_max
   from
@@ -220,34 +283,39 @@
           order by r2, date) t1
           group by t1.r2',sep='')
           )
-          
-  # for perth change pm10 mindate because of duncraig
+
+  # TODO it would be nice to include a user interaction stage, where the start date could be modified  
+  # Need to change for perth pm10 mindate because of duncraig monitoring station
   if( poll == 'PM10' & town == "PERTH"){
   mindates[,2]=as.Date('1997-05-23')
   }
   
-  # in Launceston change pm10 mindate ="'1997-05-09'" changed from "'1992-05-04'" as this is start of consecutive day measurements 
+  # in Launceston change pm10 mindate ="'1997-05-09'" changed from "'1992-05-04'" as this is start of consecutive day measurements prior to that it was weekly and seasonal
   if( poll == 'PM10' & town == "Launceston"){
   mindates[,2]=as.Date('1997-05-09')
   }
   
-  alldates_pm10_town=as.data.frame(as.Date(mindates[,2]:as.Date('2007-12-31'),'1970-01-01'))
-  alldates_pm10_town$id=1:nrow(alldates_pm10_town)
-  names(alldates_pm10_town)=c('date','id')
-  write.csv(alldates_pm10_town,paste('alldates_pm10_',town,'.csv',sep=''),row.names=F,quote=F)
-  load_newtable_to_postgres(paste('alldates_pm10_',town,'.csv',sep=''),schema='pollution',tablename=paste('alldates_pm10_',town,sep=''),pk=NULL,header=TRUE,printcopy=TRUE,sheetname="Sheet1",withoids=FALSE,pguser="ivan_hanigan",db='weather',ip='130.56.102.30',source_file="STDIN",datecol='date')
+  # max date is 2007
+  alldates_pm10_town  <- as.data.frame(as.Date(mindates[,2]:as.Date('2007-12-31'),'1970-01-01'))
   
+  alldates_pm10_town$id <- 1:nrow(alldates_pm10_town)
+  names(alldates_pm10_town) <- c('date','id')
   
+  #write.csv(alldates_pm10_town, paste('alldates_pm10_',town,'.csv',sep=''), row.names=F,quote=F)
   
-  #####################################################################
-  # NOTE DONE, REALISED THIS IS IN DELPHE... modified to put it back into delphe 22/6/2010 after having changed to bio 7/4/2010 (post collapse)
-  shell(paste("type sqlquery.txt \"alldates_pm10_",town,".csv\" | \"C:\\Program Files\\PostgreSQL\\8.3\\bin\\psql\" -h 130.56.102.30 -U ivan_hanigan -d bio",sep="")) 
+  dbWriteTable(ch, paste('alldates_pm10_',town,sep=''), alldates_pm10_town, row.names = F)
   
+  ## load_newtable_to_postgres(
+  ## paste('alldates_pm10_',town,'.csv',sep=''), schema='pollution', tablename=paste('alldates_pm10_',town,sep=''), pk=NULL, header=TRUE, printcopy=TRUE, sheetname="Sheet1", withoids=FALSE, pguser=user, db='weather',
+  ## ip= postgis_ipaddress, source_file="STDIN",datecol='date'
+  ## )
+  
+   
   
   try(
-  sqlQuery(ch,paste("drop table pollution.stationdates_",town,"_pm10;",sep=''))
+  dbSendQuery(ch,paste("drop table pollution.stationdates_",town,"_pm10;",sep=''))
   )
-  sqlQuery(ch,
+  dbSendQuery(ch,
   #       cat(
           paste("
           select site as station, date 
@@ -258,7 +326,7 @@
           join
                   (
                   select t1.site,t2.studysite as region
-                  from spatial.pollution_stations_combined_final t1 ,health.study_slas_01 t2
+                  from spatial.pollution_stations_combined_final t1 , health.study_slas_01 t2
                   where st_intersects(t1.gda94_geom,t2.the_geom) and upper(t2.studysite) like '",toupper(town),"%'
                   order by studysite
                   ) combined_pollutants2
@@ -268,29 +336,31 @@
           ",sep="")
           )
   
-  sqlQuery(ch,
+  dbSendQuery(ch,
   paste('drop table pollution.alldates_pm10_',town,sep='')
   )
   
-  file.remove(paste('alldates_pm10_',town,'.csv',sep=''))
+  #file.remove(paste('alldates_pm10_',town,'.csv',sep=''))
   
   #########################       
   alldates_pm25_town=as.data.frame(as.Date(mindates[,3]:as.Date('2007-12-31'),'1970-01-01'))
   alldates_pm25_town$id=1:nrow(alldates_pm25_town)
   names(alldates_pm25_town)=c('date','id')
-  write.csv(alldates_pm25_town,paste('alldates_pm25_',town,'.csv',sep=''),row.names=F,quote=F)
-  load_newtable_to_postgres(paste('alldates_pm25_',town,'.csv',sep=''),schema='pollution',tablename=paste('alldates_pm25_',town,sep=''),pk=NULL,header=TRUE,printcopy=TRUE,sheetname="Sheet1",withoids=FALSE,pguser="ivan_hanigan",db='weather',ip='130.56.102.30',source_file="STDIN",datecol='date')
+  dbWriteTable(ch, paste('alldates_pm25_',town,sep=''), alldates_pm25_town, row.names = F)
+  
+  #write.csv(alldates_pm25_town,paste('alldates_pm25_',town,'.csv',sep=''),row.names=F,quote=F)
+  #load_newtable_to_postgres(paste('alldates_pm25_',town,'.csv',sep=''),schema='pollution',tablename=paste('alldates_pm25_',town,sep=''),pk=NULL,header=TRUE,printcopy=TRUE,sheetname="Sheet1",withoids=FALSE,pguser="ivan_hanigan",db='weather',ip='",postgis_ipaddress,"',source_file="STDIN",datecol='date')
   
   # modified to write to bio
-  shell(paste("type sqlquery.txt \"alldates_pm25_",town,".csv\" | \"C:\\Program Files\\PostgreSQL\\8.3\\bin\\psql\" -h 130.56.102.30 -U ivan_hanigan -d bio",sep="")) 
+  #system(paste("type sqlquery.txt \"alldates_pm25_",town,".csv\" | \"C:\\Program Files\\PostgreSQL\\8.3\\bin\\psql\" -h ",postgis_ipaddress," -U ivan_hanigan -d bio",sep="")) 
   
   try(
-  sqlQuery(ch,
+  dbSendQuery(ch,
   #       cat(
           paste("drop table pollution.stationdates_",town,"_pm25;",sep='')
           )
   )
-  sqlQuery(ch,
+  dbSendQuery(ch,
   #       cat(
           paste("
           select site as station, date 
@@ -311,33 +381,35 @@
           ",sep="")
           )
   
-  sqlQuery(ch,
+  dbSendQuery(ch,
   paste('drop table pollution.alldates_pm25_',town,sep='')
   )
   
-  file.remove(paste('alldates_pm25_',town,'.csv',sep=''))
-  file.remove('sqlquery.txt')
+  #file.remove(paste('alldates_pm25_',town,'.csv',sep=''))
+  #file.remove('sqlquery.txt')
   
   
   #########################       
   alldates_o3_town=as.data.frame(as.Date(o3mindate[,2]:as.Date('2007-12-31'),'1970-01-01'))
   alldates_o3_town$id=1:nrow(alldates_o3_town)
   names(alldates_o3_town)=c('date','id')
-  write.csv(alldates_o3_town,paste('alldates_o3_',town,'.csv',sep=''),row.names=F,quote=F)
-  load_newtable_to_postgres(paste('alldates_o3_',town,'.csv',sep=''),schema='pollution',tablename=paste('alldates_o3_',town,sep=''),pk=NULL,header=TRUE,printcopy=TRUE,sheetname="Sheet1",withoids=FALSE,pguser="ivan_hanigan",db='weather',ip='130.56.102.30',source_file="STDIN",datecol='date')
+  dbWriteTable(ch, paste('alldates_o3_',town,sep=''), alldates_o3_town, row.names = F)
+  
+  #write.csv(alldates_o3_town,paste('alldates_o3_',town,'.csv',sep=''),row.names=F,quote=F)
+  #load_newtable_to_postgres(paste('alldates_o3_',town,'.csv',sep=''),schema='pollution',tablename=paste('alldates_o3_',town,sep=''),pk=NULL,header=TRUE,printcopy=TRUE,sheetname="Sheet1",withoids=FALSE,pguser="ivan_hanigan",db='weather',ip='",postgis_ipaddress,"',source_file="STDIN",datecol='date')
   
   
   # modified to write to bio
-  shell(paste("type sqlquery.txt \"alldates_o3_",town,".csv\" | \"C:\\Program Files\\PostgreSQL\\8.3\\bin\\psql\" -h 130.56.102.30 -U ivan_hanigan -d bio",sep="")) 
+  #system(paste("type sqlquery.txt \"alldates_o3_",town,".csv\" | \"C:\\Program Files\\PostgreSQL\\8.3\\bin\\psql\" -h ",postgis_ipaddress," -U ivan_hanigan -d bio",sep="")) 
   
   
   try(
-  sqlQuery(ch,
+  dbSendQuery(ch,
   #       cat(
           paste("drop table pollution.stationdates_",town,"_o3;",sep="")
           )
   )
-  sqlQuery(ch,
+  dbSendQuery(ch,
   #       cat(    
           paste("select site as station, date 
           into pollution.stationdates_",town,"_o3
@@ -357,31 +429,30 @@
           ",sep="")
           )
   
-  sqlQuery(ch,
+  dbSendQuery(ch,
   paste('drop table pollution.alldates_o3_',town,sep='')
   )
   
-  file.remove(paste('alldates_o3_',town,'.csv',sep=''))
-  file.remove('sqlquery.txt')
+  #file.remove(paste('alldates_o3_',town,'.csv',sep=''))
+  #file.remove('sqlquery.txt')
   
   }
   
   
   
   
-  save.image('impute.Rdata')
+  # save.image('impute.Rdata')
   
   
 #+end_src
 ** COMMENT todo.r
 #+name:todo.r
-#+begin_src R :session *shell* :tangle no :exports none :eval no
-  todo.r
+#+begin_src R :session *R* :tangle todo.r :exports none :eval no
+  # todo.r
   
   # to do
-  require(RODBC)
-  ch=odbcConnect('delphe')
-  
+  library(rpostgrestools)
+  ch <- connect2postgres2('delphe')
   
   # perthPM10="'1997-05-23'"  (changed from 1996-06-15)
   # perthPM25="'1994-02-15'"   
@@ -424,7 +495,7 @@
   stat=todo[i,4]
   
   # step one get a list of the sites to do
-  sites_todo=function(town,mindate,maxdate="'2007-12-31'",threshold=0.7,poll,stat){
+  sites_todo <- function(town,mindate,maxdate="'2007-12-31'",threshold=0.7,poll,stat){
   
   print(poll);print(town)
   print(stat)
@@ -432,7 +503,7 @@
   
   
   # find the stations with complete
-  d=sqlQuery(ch,
+  d<- dbGetQuery(ch,
   # writeClipboard(
   # cat(
   paste("
@@ -501,16 +572,16 @@
   sitelist=sites_todo(town=town,mindate=mindate,poll=poll,stat=stat)
   sitelist
   
-  impute=function(sitelist, town, poll, stat){
+  impute <- function(sitelist, town, poll, stat){
   
   # first make a table
-  try(sqlQuery(ch,
+  try(dbSendQuery(ch,
   # cat(
   paste("drop TABLE pollution.imputed_",poll,"_",town,sep='')
   ),silent=T)
   
   
-  sqlQuery(ch,
+  dbSendQuery(ch,
   # cat(
   paste("CREATE TABLE pollution.imputed_",poll,"_",town,"
   (
@@ -533,7 +604,7 @@
   
   # a) calculate a daily network average of all non-missing sites 
   strt=Sys.time()
-  sqlQuery(ch,
+  dbSendQuery(ch,
   # cat(
   paste("select date, avg(param) as networkavg         
   into pollution.networkavg
@@ -566,7 +637,7 @@
   
   # NB -45 and + 44 after reading the SAS CMOVAVE info as this is what it does when given an even number (90)
   strt=Sys.time()
-  sqlQuery(ch,
+  dbSendQuery(ch,
   "select t1.date, avg(t2.networkavg) as networkavg3mo          
   into pollution.networkavg3mo
   from
@@ -584,7 +655,7 @@
   # c) calculate a 3-month seasonal mean for MISSING site
   
   strt=Sys.time()
-  sqlQuery(ch,
+  dbSendQuery(ch,
   # cat(
   paste("select t1.date, avg(t2.param) as missingavg3mo       
   into pollution.missingavg3mo
@@ -624,7 +695,7 @@
   
   # d) estimate missing days at missing sites and insert to output table
   strt=Sys.time()
-  sqlQuery(ch,
+  dbSendQuery(ch,
   #cat(
   paste("INSERT INTO  pollution.imputed_",poll,"_",town,"  (
               site, rawdate, rawdata, date, networkavg, missingavg3mo, networkavg3mo, 
@@ -671,9 +742,9 @@
   print(endd-strt)
   
   
-  sqlQuery(ch,"drop table pollution.networkavg ;")
-  sqlQuery(ch,"drop table pollution.missingavg3mo;")
-  sqlQuery(ch,"drop table pollution.networkavg3mo;")
+  dbSendQuery(ch,"drop table pollution.networkavg ;")
+  dbSendQuery(ch,"drop table pollution.missingavg3mo;")
+  dbSendQuery(ch,"drop table pollution.networkavg3mo;")
   
   }
   
@@ -687,9 +758,9 @@
   # AND fill any missing days with avg of before and after (if this is less than 5% of days)
   # first make sure the number of missing days with one valid either side is < 5% of total days
   
-  n_missing=function(town,poll,thresh=0.05){
+  n_missing <- function(town,poll,thresh=0.05){
   
-  nmissing=sqlQuery(ch,
+  nmissing<- dbGetQuery(ch,
   # cat(
   paste("
   select count(*) from
@@ -717,7 +788,7 @@
   ",sep="")
   )
   
-  noverall=sqlQuery(ch,
+  noverall<- dbGetQuery(ch,
   paste("select count(*) from
   (
   select rawdate , avg(imputed_param) as ",poll,"
@@ -733,15 +804,15 @@
   n_missing(town,poll)
   
   # if = 'go for it'
-  citywide_av=function(town, poll, stat){
+  citywide_av <- function(town, poll, stat){
   
   # calculate and insert to temp table
-  try(sqlQuery(ch,
+  try(dbSendQuery(ch,
   #cat(
   paste("drop TABLE pollution.",poll,"_",stat,"_events_",town,"_temp",sep='')
   ),silent=T)
   
-  sqlQuery(ch,
+  dbSendQuery(ch,
   #cat(
   paste("CREATE TABLE pollution.",poll,"_",stat,"_events_",town,"_temp
   (
@@ -751,7 +822,7 @@
   )",sep="")
   )
   
-  sqlQuery(ch,
+  dbSendQuery(ch,
   #cat(
   paste("
   INSERT INTO pollution.",poll,"_",stat,"_events_",town,"_temp (
@@ -793,13 +864,13 @@
   )
   
   # ok calculate % and insert to output table
-  sqlQuery(ch,
+  dbSendQuery(ch,
   #cat(
   paste("drop TABLE pollution.",poll,"_",stat,"_events_",town,sep="")
   )
   
   
-  sqlQuery(ch,
+  dbSendQuery(ch,
   #cat(
   paste("CREATE TABLE pollution.",poll,"_",stat,"_events_",town,"
   (
@@ -810,7 +881,7 @@
   )",sep="")
   )
   
-  sqlQuery(ch,
+  dbSendQuery(ch,
   #cat(
   paste("
   INSERT INTO pollution.",poll,"_",stat,"_events_",town," (
@@ -863,34 +934,34 @@
   
   # clean up
   
-  sqlQuery(ch,
+  dbSendQuery(ch,
   # cat(
   paste("drop table pollution.",'pm10',"_",c('av'),"_events_",gsub('Lower Hunter','Newcastle',towns),"_temp",sep='',collapse=';\n'))
   
-  sqlQuery(ch,
+  dbSendQuery(ch,
   # cat(
   paste("drop table pollution.",'pm25',"_",c('av'),"_events_",gsub('Lower Hunter','Newcastle',towns),"_temp",sep='',collapse=';\n'))
   
-  sqlQuery(ch,
+  dbSendQuery(ch,
   # cat(
   paste("drop table pollution.",'o3',"_",c('max'),"_events_",gsub('Lower Hunter','Newcastle',towns[1:4]),"_temp",sep='',collapse=';\n'))
   
   
   # create a master table
-  stitch_together=function(poll=polls[5,3]){
+  stitch_together <- function(poll=polls[5,3]){
   
   print(poll)
   
   # NB only once!
   
-  exist=sqlQuery(ch,
+  exist<- dbGetQuery(ch,
   #cat(
   paste("select * from pollution.",poll,"_",stat,"_events_all_regions limit 1",sep='')
   )
   
   if(length(nrow(exist))==0){
   
-          sqlQuery(ch,
+          dbSendQuery(ch,
           #cat(
           paste("CREATE TABLE pollution.",poll,"_",stat,"_events_all_regions
           (
@@ -911,12 +982,12 @@
           town='Newcastle'
           }
           
-          # sqlQuery(ch,
+          # dbSendQuery(ch,
           # # cat(
           # paste("delete from pollution.",poll,"_",stat,"_events_all_regions where region = \'",town,"\'",sep="")
           # )
   
-          sqlQuery(ch,
+          dbSendQuery(ch,
           # cat(
           paste("insert into pollution.",poll,"_",stat,"_events_all_regions (region, date, ",poll,"_",stat,", ranked, pctile)
           select '",town,"', date, ",poll,"_",stat,", ranked, pctile
@@ -939,11 +1010,11 @@
   
   # may have crept in via the station dates process?  
    
-  sqlQuery(ch,'grant all on table pollution.pm10_av_events_all_regions to grant_williamson')
+  dbSendQuery(ch,'grant all on table pollution.pm10_av_events_all_regions to grant_williamson')
    
-  sqlQuery(ch,'grant all on table pollution.pm25_av_events_all_regions to grant_williamson')
+  dbSendQuery(ch,'grant all on table pollution.pm25_av_events_all_regions to grant_williamson')
    
-  sqlQuery(ch,'grant all on table pollution.o3_max_events_all_regions to grant_williamson')
+  dbSendQuery(ch,'grant all on table pollution.o3_max_events_all_regions to grant_williamson')
   
   ############################################################# 
   # summarise  
@@ -978,12 +1049,12 @@
   
   # town=towns[1]
   # print(town)   
-          # sqlQuery(ch,
+          # dbSendQuery(ch,
           # # cat(
           # paste("delete from pollution.",poll,"_",stat,"_events_all_regions where region = \'",town,"\'",sep="")
           # )
   
-  d=sqlQuery(ch,
+  d<- dbGetQuery(ch,
           # cat(
           paste("select t1.date as fulldate, t2.*
           from  
@@ -993,7 +1064,7 @@
           on t1.date=t2.date",sep="")
           )
           
-  counts=sqlQuery(ch,
+  counts<- dbGetQuery(ch,
   # cat(
   paste("select \'99\', count(*)
   from
@@ -1105,8 +1176,8 @@
     
     
   # identify 99% centile days with no refs.
-  missing99=function(poll){
-  sqlQuery(ch,
+  missing99 <- function(poll){
+  dbSendQuery(ch,
   # cat(
   paste("
   create or replace view pollution.",poll,"_to_check
@@ -1149,6 +1220,10 @@
   missing99(poll=polls[7,3])
   
 #+end_src
-** also see summary stats
+** also see 
+orig joining of events and pollution was from work PC
+I:/projects/1.302 Biomass/analysis/exposures/event validation/impute/quality_control/do.r
+
+
 head/projects/Biomass/data/pollution/summaryValidPollution4events
 I:\Dropbox\projects\1.302 Biomass\data\pollution\summaryValidPollution4events

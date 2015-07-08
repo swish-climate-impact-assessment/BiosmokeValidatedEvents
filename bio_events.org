@@ -10,10 +10,385 @@
 - The idea is to house a complete data and document compendium as an R package
 - Using the template from https://github.com/jhollist/manuscriptPackage
 
-* perhaps submit a data descriptor paper?
+* writing up the methods for an EML document
+** headers
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline no
+  ---
+  title: "Biosmoke Validated Events Database Protocols"
+  author: Ivan C. Hanigan
+  output:
+    html_document:
+      toc: false
+      theme: united
+      number_sections: no    
+    pdf_document:
+      toc: false
+      toc_depth: 3
+      highlight: zenburn
+      keep_tex: false
+      number_sections: no        
+  documentclass: article
+  classoption: a4paper
+  csl: methods-in-ecology-and-evolution.csl
+  bibliography: references.bib
+  ---
+  
+  ```{r echo = F, eval=F, results="hide"}
+#+end_src
+** run-able R
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval yes :padline no
+  setwd("~/data/BiosmokeValidatedEvents")
+  library(rmarkdown)
+  library(knitr)
+  library(knitcitations)
+  library(bibtex)
+  cleanbib()
+  cite_options(citation_format = "pandoc", check.entries=FALSE) 
+  rmarkdown::render("inst/doc/methods.Rmd", "html_document")
+  
+#+end_src
+
+#+RESULTS:
+: /home/ivan_hanigan/data/BiosmokeValidatedEvents/inst/doc/methods.html
+
+** perhaps tangle out pure R
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline no
+  ```
+  ```{r echo = F, eval=F, results="hide"}  
+  # to tangle chunks even when eval = F use this (with eval=F)
+  library(knitr)
+  knit_hooks$set(purl = function(before, options) {
+    if (before) return()
+    input  = current_input()  # filename of input document
+    output = paste(tools::file_path_sans_ext(input), 'R', sep = '.')
+    if (knitr:::isFALSE(knitr:::.knitEnv$tangle.start)) {
+      assign('tangle.start', TRUE, knitr:::.knitEnv)
+      unlink(output)
+    }
+    cat(options$code, file = output, sep = '\n', append = TRUE)
+  })
+  
+  ```  
+#+end_src
+** bib
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline no
+  
+  ```{r, echo = F, results = 'hide'}
+  # load
+  if(!exists("bib")){
+  bib <- read.bibtex("~/references/library.bib")
+  }
+  ```
+  
+#+end_src
+
+** method steps
+*** step1
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
+# Method Steps
+
+Step 1. Source air pollution data. Both time series observations and spatial data regarding site locations. 
+
+Step 1.1. NSW data downloaded from an online data server  (http://www.environment.nsw.gov.au/AQMS/sitesyd.htm).  Site locations (Lat and Long) obtained from website.
+
+Step 1.2. WA data sent on CD from contacts at the WA Government Department, these were hourly data as provided.  Cleaned so as only days with >75% of hours are used.
+
+Step 1.3. Tasmanian data sent via email from contact at the Department, these were daily data.
+
+Step 1.4. All data combined and Quality Control checked in the PostGIS database.  The spatial data was named spatial.pollution_stations_combined_final.
+
+#+end_src
+*** step2
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
+
+Step 2. Spatial data for cities.
+
+#+end_src
+*** step3
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
+
+Step 3. QC and merge.
+#+end_src
+*** step4
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
+
+Step 4. Calculate a network average. In cities where data were collected from several monitoring sta- tions, the missing daily site-specific PM concentrations were imputed using available data from other proximate monitoring sites in the network. The daily city-wide PM concentrations were then estimated following the protocol of the Air Pollution and Health: a European Approach studies. `r citet(bib[["Atkinson2001"]])`.
+
+Step 4.1. Prepare Data.
+#+end_src
+*** step5
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
+
+Step 5. Validate events and identify the causes.
+
+#+end_src
+
+** COMMENT bib-code
+#+name:bib
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no
+
+  **References**
+
+  ```{r, echo=FALSE, message=FALSE, eval = T}
+  write.bibtex(file="references.bib")
+  ```
+  
+#+end_src
+
+** ETL metadata 
+*** COMMENT go-code
+#+name:go
+#+begin_src R :session *R* :tangle no :exports none :eval yes
+  #### name:go ####
+  require(rpostgrestools)
+  ch <- connect2postgres2("data_inventory_hanigan_dev4")
+  setwd("~/data/BiosmokeValidatedEvents/inst/doc/")
+  projs <- dbGetQuery(ch, "select id, title from project order by id")
+  projs
+  #for(i in 1:nrow(projs)){
+  i = 2
+    project = projs[i,2]
+  project
+  dsets <- dbGetQuery(ch,
+                      sprintf("select shortname from dataset where project_id = %s order by id", projs[i,1])
+                      )
+  #for(dataset in dsets){
+  dsets[,1]
+  dataset = dsets[1,1]
+  dataset  
+  #}
+  
+  #}
+  
+  library(rmarkdown)
+  library(knitr)
+  
+  dir()
+  #render("data_deposit_form.Rmd") 
+  knitr::knit2html("data_deposit_form.Rmd", stylesheet='custom.css')
+  #browseURL("data_deposit_form.html")
+  # no good, do in word? system("pandoc -i data_deposit_form.html -o data_deposit_form.docx")
+#+end_src
+
+#+RESULTS: go
+: data_deposit_form.html
+
+*** summary of data for ETL
+#+begin_src R :session *R* :tangle inst/doc/data_deposit_form.Rmd :exports none :eval no :padline no
+  ---
+  title: DDF
+  output: html_document
+  ---
+  
+  # Introduction
+    
+  # Project level information
+  
+  ```{r, echo = F, eval = T, results="hide"}
+  #### name:summary of project info ####
+  if(exists('ch'))   dbDisconnect(ch)
+  library(swishdbtools)
+  library(sqldf)
+  library(knitr)
+  library(xtable)  
+  
+  ch  <- connect2postgres2("data_inventory_hanigan_dev4")
+  prj <- project
+  dset <- dataset
+  
+  ```
+  ```{r, echo = F, eval = T, results="asis"}  
+  
+  dat <- sqldf(connection = ch,
+    sprintf("select t1.*
+    from project t1
+    where t1.title = '%s'", prj)
+    )
+  #names(dat)
+  #t(dat)
+  
+  ####  help
+  help  <- sqldf(connection = ch,
+    "select t1.eml_node, t1.help_comment, t1.datinv
+    from crosswalk t1
+    where eml_table like '%project%'"
+    )
+  # head(help)
+  
+  dat_i <- data.frame(V1 = names(dat), V2=t(dat[1,]))
+  #dat_i
+  dat_i$order <- 1:nrow(dat_i)  
+  qc <- merge(dat_i, help, by.x = "V1", by.y = "datinv", all.x = TRUE)
+  qc2 <- qc[order(qc$order),c(1,2,5)]
+  names(qc2) <- c("variable", "value", "help_comment")
+  
+  qc2[,2] <- gsub("\n", " | ", qc2[,2])
+  print(xtable(qc2), type = "html", include.rownames = F)
+  
+  ```
+  
+  # Dataset level information (data packages)
+  ```{r, echo = F, eval = T, results="asis"}
+  
+  #### for each dataset
+  #dat$shortname
+  # for(i in 1:nrow(dat)){
+  
+  # i = which(dat$shortname == dset)
+  
+  
+  dat <- dbGetQuery(ch,
+  sprintf("select * from dataset
+   where shortname ='%s'", dset)
+  )
+  dat_i <- data.frame(V1 = names(dat), V2=t(dat[1,]))
+  # dat_i
+   dat_i$order <- 1:nrow(dat_i)
+    #title <- paste(c(as.character(dat_i[dat_i$V1 %in% c('shortname','title'),2])),
+    #      collapse = ", ", sep = "")
+    #title
+  
+  help  <- dbGetQuery(ch,
+    "select t1.eml_node, t1.help_comment, t1.datinv
+    from crosswalk t1
+    where eml_table like '%dataset%'"
+    )
+  # head(help)
+  
+  
+  qc <- merge(dat_i, help, by.x = "V1", by.y = "datinv", all.x = TRUE)
+  #qc[1,]
+  #names(qc)
+  qc2 <- qc[order(qc$order),c(1,2,5)]
+  #qc2
+  #qc3 <- data.frame(index1 = rep(paste("0. dataset", dset), nrow(qc2)),
+  #           index2 = c(title, rep("", nrow(qc2) - 1)),
+  #           metadata = qc2)
+  #names(qc3) <- c("index1", "index2", "variable", "value", "help")
+  names(qc2) <- c("variable", "value", "help")
+  #names(qc2)
+  #### Keyword
+  ky <- dbGetQuery(ch,
+    #cat(q
+    paste("select t3.keyword
+    from dataset t1
+    join keyword t3
+    on t1.id = t3.dataset_id
+    where t1.shortname = '",dset,"'
+    ", sep = "")
+  )
+  
+  if(nrow(ky) > 0){
+  ky <- ky[,1]
+  } else {
+  ky <- ''
+  }
+  ky <- paste(ky, sep = "", collapse=", ")
+  ky <- data.frame(variable = "keywords", value = ky, help="Keywords or phrases that concisely describe the resource. Example is biodiversity. Use a controlled vocabulary thesaurus")
+  
+  
+  qc_out <- rbind(qc2, ky)
+  #qc_out[,1:3]
+  #qc_out
+  
+  #kable(qc_out, row.names = F)
+  
+  
+  dat <- dbGetQuery(ch,
+  sprintf("select t1.*
+  from intellectualright t1
+  join dataset t2
+  on t1.dataset_id =  t2.id
+   where shortname ='%s'", dset)
+  )
+  if(nrow(dat) == 0){
+  dat <- data.frame(id = '', dataset_id = '', licence_code = '',
+    licence_text = '', special_conditions='')
+  }
+  dat_i <- data.frame(V1 = names(dat), V2=t(dat[1,]))
+   #dat_i
+   dat_i$order <- 1:nrow(dat_i)
+    #title <- paste(c(as.character(dat_i[dat_i$V1 %in% c('shortname','title'),2])),
+    #      collapse = ", ", sep = "")
+    #title
+  
+  help  <- sqldf(connection = ch,
+    "select t1.eml_node, t1.help_comment, t1.datinv
+    from crosswalk t1
+    where eml_table like '%intellectualright%'"
+    )
+  # head(help)
+  qc <- merge(dat_i, help, by.x = "V1", by.y = "datinv", all.x = TRUE)
+  qc2 <- qc[order(qc$order),c(1,2,5)]
+  names(qc2) <- c("variable", "value", "help")
+  # names(  qc2)
+  qc_out <- rbind(qc_out, qc2[-c(1,2),])
+  qc_out[,2] <- gsub("\n", " | ", qc_out[,2])
+  print(xtable(qc_out), type = "html", include.rownames = F)
+  ```
+  
+  # Entity level information (files)  
+  
+  ```{r, echo = F, eval = T, results="asis"}
+    
+  #### entity ####
+  #dat <- dbGetQuery(ch, "select * from entity")
+  dat_ent <- dbGetQuery(ch,
+  #cat(
+  sprintf("select 
+  t3.*
+  from project t1
+  join dataset t2
+  on t1.id = t2.project_id
+  join entity t3
+  on t2.id = t3.dataset_id
+  where t1.title = '%s'
+  and t2.shortname = '%s'", prj, dset),
+  )
+  # head(dat_ent)
+  
+  help_ent  <- sqldf("select t1.eml_node, t1.help_comment, t1.datinv
+    from crosswalk t1
+    where eml_table like '%entity%'",
+    connection = ch)
+  #help_ent
+  
+  
+  for(j in 1:nrow(dat_ent)){
+  #j = 1
+  print(paste("#### File", j))
+  ent_j <- data.frame(V1 = names(dat_ent), V2=t(dat_ent[j,]))
+  ent_j$order <- 1:nrow(ent_j)
+  #title2 <- paste(c(j, "entity", as.character(ent_j[1,2])),
+  #        collapse = ", ", sep = "")
+  #  title2
+    qc_ent <- merge(ent_j, help_ent, by.x = "V1", by.y = "datinv", all.x = T)
+    qc_ent2 <- qc_ent[order(qc_ent$order),c(1,2,5)]
+  #qc_ent2
+  #qc_ent3 <- data.frame(index = rep(title2, nrow(qc_ent2)),
+  #                      index = c(title2, rep("", nrow(qc_ent2) - 1)),
+  #                      meta = qc_ent2)
+  names(qc_ent2) <- c("variable","value","help_comment")
+  qc_ent2[,2] <- gsub("\n", " | ", qc_ent2[,2])
+  #print(kable(qc_ent2, row.names = F))
+  
+  print(xtable(qc_ent2), type = "html", include.rownames = F)
+  #write.csv(qc_ent2, paste(dset, "_data_deposit_form.csv", sep = ""), row.names = F)
+  }
+  
+  
+    
+  ```
+  
+#+end_src
+
+#+RESULTS:
+
+
+** COMMENT perhaps submit a data descriptor paper?
 http://www.biomedcentral.com/bmcresnotes/authors/instructions/datanote
 ~/Dropbox/tools/LaTeX templates/Biomed/biomed_2015/bmc_template
-* COMMENT conceptual-diagram-code
+** COMMENT conceptual-diagram-code
 #+name:conceptual-diagram
 #+begin_src R :session *R* :tangle inst/doc/conceptual-diagram.R :exports none :eval yes
   #### name:conceptual-diagram ####
@@ -21,7 +396,8 @@ http://www.biomedcentral.com/bmcresnotes/authors/instructions/datanote
   library(disentangle)
   library(stringr)
   dat <- read.csv("conceptual-diagram.csv", stringsAsFactor = F)
-  str(dat)
+  dat <- dat[dat$DONTSHOW != "Y", ]
+  summary(dat)
   flowchart <- newnode_df(
     indat = dat
     ,
@@ -46,10 +422,10 @@ http://www.biomedcentral.com/bmcresnotes/authors/instructions/datanote
 #+RESULTS: conceptual-diagram
 : 0
 
-* reference review
-media/external/u3171954-H/My%20Documents/projects/1.302%20Biomass/analysis/exposures/event%20validation/Archive_20100609/REFS
-* metadata
-** Methods
+** COMMENT reference review
+media/external/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures/event validation/Archive_20100609/REFS
+
+** COMMENT read  Methods back from word and insert to data inventory using sql???
 *** COMMENT methods-code
 #+name:methods
 #+begin_src R :session *R* :tangle no :exports none :eval yes
@@ -133,7 +509,6 @@ media/external/u3171954-H/My%20Documents/projects/1.302%20Biomass/analysis/expos
 #+end_src
 
 #+RESULTS: methods
-
 
 * COMMENT get-data-delphe-code
 #+name:get-data-delphe
