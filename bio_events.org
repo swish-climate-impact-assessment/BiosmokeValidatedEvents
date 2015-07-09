@@ -25,7 +25,7 @@
       toc: false
       toc_depth: 3
       highlight: zenburn
-      keep_tex: false
+      keep_tex: true
       number_sections: no        
   documentclass: article
   classoption: a4paper
@@ -42,14 +42,18 @@
   library(knitr)
   library(knitcitations)
   library(bibtex)
+  
   cleanbib()
   cite_options(citation_format = "pandoc", check.entries=FALSE) 
-  rmarkdown::render("inst/doc/methods.Rmd", "html_document")
+  rmarkdown::render("inst/doc/methods.Rmd", "pdf_document")
+  # if tex get out of doc because it breaks the R build
+  #file.rename("inst/doc/methods.tex", "vignettes/methods.tex")
+  #file.remove("inst/doc/methods.pdf")
   
 #+end_src
 
 #+RESULTS:
-: /home/ivan_hanigan/data/BiosmokeValidatedEvents/inst/doc/methods.html
+: /home/ivan_hanigan/data/BiosmokeValidatedEvents/inst/doc/methods.pdf
 
 ** perhaps tangle out pure R
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline no
@@ -82,47 +86,216 @@
   
 #+end_src
 
-** method steps
-*** step1
+** abstract
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
-# Method Steps
-
-Step 1. Source air pollution data. Both time series observations and spatial data regarding site locations. 
-
-Step 1.1. NSW data downloaded from an online data server  (http://www.environment.nsw.gov.au/AQMS/sitesyd.htm).  Site locations (Lat and Long) obtained from website.
-
-Step 1.2. WA data sent on CD from contacts at the WA Government Department, these were hourly data as provided.  Cleaned so as only days with >75% of hours are used.
-
-Step 1.3. Tasmanian data sent via email from contact at the Department, these were daily data.
-
-Step 1.4. All data combined and Quality Control checked in the PostGIS database.  The spatial data was named spatial.pollution_stations_combined_final.
-
+  # Abstract
+  
+  ,**Background:** Epidemiological studies of the health effects of
+   biomass smoke events (such as bushfires or wood-heater smoke spikes
+   due to inversion layers) have been hampered by the availability of
+   datasets that explicitly pertain to these sources. Extreme air
+   pollution events may also be caused by dust storms, fossil fuel
+   induced smog events or factory fires. This paper presents an open and
+   extensible database developed by the authors to identify historical
+   spikes in PM concentrations and to evaluate whether they were caused
+   by vegetation fire smoke or by other possible sources. These methods
+   provide a systematic framework for retrospective identification of
+   the air quality impacts of biomass smoke in a region that is
+   seasonally affected by fires.  In this paper, we describe the
+   database and data aquisition methods, as well as analytical
+   considerations when validating historical events using a range of
+   reference types.
+  
+  ,**Methods:** Several major urban centers and smaller regional towns in
+   the Australian states of New South Wales, Western Australia, and
+   Tasmania were selected as they are intermittently affected by extreme
+   episodes of vegetation fire smoke.  Air pollution data was collated
+   and missing values were imputed.  Extreme values were identified and
+   a range of sources of reference information were assessed for each
+   date.  Reference types online newspaper archives, government and
+   research agency records, satellite imagery and a Dust Storms
+   database.
+  
+  ,**Results:** This dataset contains validated events of extreme biomass
+    smoke pollution across Australian cities. The authors have
+    previously demonstrated the utility of this database in analyses of
+    hospital admissions and mortality data for these locations to
+    quantify the pollution-related health effects of these events.  
+  
+  ,**Conclusions:** The database was created using open source software
+    and this makes the prospect for future extensions to the database
+    possible.  THis is because if other scientists notice an ommision or
+    error in these data they can offer an amendment. We believe that
+    this will improve the database and benefit the whole biomass smoke
+    health research community.
+  
 #+end_src
-*** step2
+** findings
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
+  # Findings
+  
+  ## Description
+  
+  The background and purpose of the database or data collection should
+  be presented for readers without specialist knowledge in that area.
+  For this database we should cite the original paper by
+  `r citet(bib[["JohnstonFJHaniganICHendersonSBMorganGGandBowman"]])` as well as
+  the two health analyses of Hospitalisation
+  `r citep(bib[["Martin2013"]])` and Mortality
+  `r citep(bib[["Johnston2011c"]])`.
+  
+  This will be followed by a brief description of the protocol for data collection, data curation
+  and quality control, and what is being reported in the article.
+  
+  The user interface should be described and a discussion
+  of the intended uses of the database, and the benefits that are
+  envisioned, should be included, together with data on how it compares with similar
+  existing databases. A case study of the use of the database may be
+  presented. The planned future development of new features, if any,
+  should be mentioned.
+  
+  The findings section can be broken into subsections with short
+  informative headings. There is no maximum length for this section but
+  we encourage authors to be concise.
+  
+  ## General Protocols
+  
+  For each location, up to 13 yr (between 1994 and 2007) of daily air
+  quality data measured asPMless than 10um (PM10 ) or less than 2.5 um
+  (PM2.5 ) in aerodynamic diameter were examined. Air pollution data
+  were pro- vided by government agencies in the states of Western
+  Australia, New South Wales, and Tasmania. Daily averages for each site
+  were calculated excluding days with less than 75% of hourly
+  measurements. In Sydney and Perth, where data were collected from
+  several monitoring sta- tions, the missing daily site-specific PM10
+  and PM2.5 con- centrations were imputed using available data from
+  other proximate monitoring sites in the network. The daily city-wide
+  PM10 and PM2.5 concentrations were then estimated following the
+  protocol of the Air Pollution and Health: a European Approach studies
+  `r citep(bib[["Atkinson2001"]])`. 
+#+end_src
+** method steps
+*** step1 source air poolution data and load to a postgres database
+http://www.environment.nsw.gov.au/AQMS/sitesyd.htm
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
+  ## Detailed Data Collation and Validation Methods
+  
+  First a 'filling-in' procedure was
+  used to improve data completeness. It entailed the substitution of the
+  missing daily values with a weighted average of the values from the
+  rest of the monitoring stations. The pollutant measures from all
+  stations providing data were then averaged to provide single,
+  city-wide estimates of the daily levels of the pollutants
+  
+  For each city, all days in which PM10 or PM2.5 exceeded the
+  95th percentile were identified over the entire time series. These
+  extreme values were termed 'events'. A range of sources was ex- amined
+  to identify the cause of particulate air pollution events, including
+  electronic news archives, Internet searches for other reports,
+  government and research agencies, satellite imagery and a Dust Storms
+  database. Also examined were remotely sensed aerosol optical thickness
+  (AOT) data to provide further information about days for which the
+  other methods
+  
+  Step 1. Source air pollution data. Both time series observations and spatial data regarding site locations. 
+  
+  Step 1.1. NSW data downloaded from an online data server.  Site locations (Lat and Long) obtained from website.
+  
+  Step 1.2. WA data sent on CD from contacts at the WA Government Department, these were hourly data as provided.  Cleaned so as only days with >75% of hours are used.
+  
+  Step 1.3. Tasmanian data sent via email from contact at the Department, these were daily data.
+  
+  Step 1.4. All data combined and Quality Control checked in the PostGIS database.  The spatial data was named spatial.pollution_stations_combined_final.
+  
+#+end_src
+*** step2 source and load spatial data representing the city boundaries
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
 
 Step 2. Spatial data for cities.
 
 #+end_src
-*** step3
+*** step3 Calculate a network average
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
-
-Step 3. QC and merge.
-#+end_src
-*** step4
-#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
-
-Step 4. Calculate a network average. In cities where data were collected from several monitoring sta- tions, the missing daily site-specific PM concentrations were imputed using available data from other proximate monitoring sites in the network. The daily city-wide PM concentrations were then estimated following the protocol of the Air Pollution and Health: a European Approach studies. `r citet(bib[["Atkinson2001"]])`.
-
-Step 4.1. Prepare Data.
+  
+  Step 3. Calculate a network average. In cities where data were
+  collected from several monitoring sta- tions, the missing daily
+  site-specific PM concentrations were imputed using available data from
+  other proximate monitoring sites in the network. The daily city-wide
+  PM concentrations were then estimated following the protocol of the
+  Air Pollution and Health: a European Approach
+  studies. `r citet(bib[["Atkinson2001"]])`.
+  
+  Step 3.1. Prepare Data.  First it was necessary to find the minimum
+  date that the series of continuous observations can be considered to
+  start.  In the Australian datasets the initial observations could not
+  be used because the were sometimes only one day per week, only during
+  a particular season or of poor quality due to teething problems with
+  equipment and procedures.  Then it was necessary to identify missing
+  dates.  Get a list of the sites to include – that is with more than 70%
+  observed over the time period (as defined after assessing min and max
+  dates of period).
+  
+  Step 3.2. Loop over each station individually and calculate a daily
+  network average of all the other non-missing sites (ie an average of
+  all stations except the focal station of that iteration in the
+  loop).
+  
+  Step 3.3. Calculate three monthly seasonal mean of these non-missing
+  stations.  Calculate a three-month seasonal mean for MISSING site.
+  Estimate missing days at missing sites.
+  
+  Step 3.4. Join all sites for city wide averages and fill any missing days with
+  avg of before and after.
+  
+  Step 3.5 Take the average of all sites per day for city wide averages.
+  
+  Step 3.6. Fill any missing days with avg of before and after (if this is less than 5% of days).
+  
 #+end_src
 *** step5
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
-
-Step 5. Validate events and identify the causes.
-
+  
+  Step 5. Validate events and identify the causes. Select any events
+  with PM10 or PM2.5 greater than 95 percentile. Manually validate
+  events usingonline newspaper archives, government and research agency
+  records, satellite imagery and other sources (such as a Dust Storm
+  database).  Enter the information for each event into the custom built
+  data entry forms.  For any events with references for multiple types
+  of source, assess the liklihood of any single source being the
+  dominant source.  Double check any remaining 99th percentile dates with no
+  references.
+  
 #+end_src
 
+** availability
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
+  
+  ## Availability and requirements
+  
+  Lists the following:
+  
+  - Project name: BiosmokeValidatedEvents
+  - Project home page: http://ivanhanigan.github.io/BiosmokeValidatedEvents/
+  - Operating system(s): R package is platform independent.  Data Entry forms are Microsoft Windows.
+  - Programming language: R and SQL
+  - Other requirements: PostgreSQL (PostGIS is desirable)
+  - License: CC BY 4.0
+  - Any restrictions to use: amendments of errors of ommision or commission are invited but will be vetted before insertion into the master database.
+  
+  ## Availability of supporting data
+  
+  BMC Research Notes encourages authors to deposit the data set(s) supporting the results reported in submitted manuscripts in a publicly-accessible data repository, when it is not possible to publish them as additional files. This section should only be included when supporting data are available and must include the name of the repository and the permanent identifier or accession number and persistent hyperlink(s) for the data set(s). The following format is required:
+  
+  "The data set(s) supporting the results of this article is(are) available in the [repository name] repository, [unique persistent identifier and hyperlink to dataset(s) in http:// format]."
+  
+  Where all supporting data are included in the article or additional files the following format is required:
+  
+  "The data set(s) supporting the results of this article is(are) included within the article (and its additional file(s))"
+  
+  We also recommend that the data set(s) be cited, where appropriate in the manuscript, and included in the reference list.
+  
+  A list of available scientific research data repositories can be found here. A list of all BioMed Central journals that require or encourage this section to be included in research articles can be found here.
+#+end_src
 ** COMMENT bib-code
 #+name:bib
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no
@@ -385,9 +558,6 @@ Step 5. Validate events and identify the causes.
 #+RESULTS:
 
 
-** COMMENT perhaps submit a data descriptor paper?
-http://www.biomedcentral.com/bmcresnotes/authors/instructions/datanote
-~/Dropbox/tools/LaTeX templates/Biomed/biomed_2015/bmc_template
 ** COMMENT conceptual-diagram-code
 #+name:conceptual-diagram
 #+begin_src R :session *R* :tangle inst/doc/conceptual-diagram.R :exports none :eval yes
@@ -535,3 +705,476 @@ media/external/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures
   
 #+end_src
 
+* COMMENT perhaps submit a data descriptor paper?
+http://www.biomedcentral.com/bmcresnotes/authors/instructions/datanote
+
+*** COMMENT latex_head-code
+run with R studio
+#+name:latex_head
+#+begin_src sh :session *shell* :tangle vignettes/BiosmokeValidatedEvents_DataNote.tex :exports none :eval no :padline no
+%% BioMed_Central_Tex_Template_v1.06
+%%                                      %
+%  bmc_article.tex            ver: 1.06 %
+%                                       %
+
+%%IMPORTANT: do not delete the first line of this template
+%%It must be present to enable the BMC Submission system to
+%%recognise this template!!
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                     %%
+%%  LaTeX template for BioMed Central  %%
+%%     journal article submissions     %%
+%%                                     %%
+%%          <8 June 2012>              %%
+%%                                     %%
+%%                                     %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                                                 %%
+%% For instructions on how to fill out this Tex template           %%
+%% document please refer to Readme.html and the instructions for   %%
+%% authors page on the biomed central website                      %%
+%% http://www.biomedcentral.com/info/authors/                      %%
+%%                                                                 %%
+%% Please do not use \input{...} to include other tex files.       %%
+%% Submit your LaTeX manuscript as one .tex document.              %%
+%%                                                                 %%
+%% All additional figures and files should be attached             %%
+%% separately and not embedded in the \TeX\ document itself.       %%
+%%                                                                 %%
+%% BioMed Central currently use the MikTex distribution of         %%
+%% TeX for Windows) of TeX and LaTeX.  This is available from      %%
+%% http://www.miktex.org                                           %%
+%%                                                                 %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% additional documentclass options:
+%  [doublespacing]
+%  [linenumbers]   - put the line numbers on margins
+
+%%% loading packages, author definitions
+
+%\documentclass[twocolumn]{bmcart}% uncomment this for twocolumn layout and comment line below
+\documentclass{bmcart}
+
+%%% Load packages
+%\usepackage{amsthm,amsmath}
+%\RequirePackage{natbib}
+%\RequirePackage[authoryear]{natbib}% uncomment this for author-year bibliography
+%\RequirePackage{hyperref}
+\usepackage[utf8]{inputenc} %unicode support
+%\usepackage[applemac]{inputenc} %applemac support if unicode package fails
+%\usepackage[latin1]{inputenc} %UNIX support if unicode package fails
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                             %%
+%%  If you wish to display your graphics for   %%
+%%  your own use using includegraphic or       %%
+%%  includegraphics, then comment out the      %%
+%%  following two lines of code.               %%
+%%  NB: These line *must* be included when     %%
+%%  submitting to BMC.                         %%
+%%  All figure files must be submitted as      %%
+%%  separate graphics through the BMC          %%
+%%  submission process, not included in the    %%
+%%  submitted article.                         %%
+%%                                             %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\def\includegraphic{}
+\def\includegraphics{}
+
+
+
+%%% Put your definitions there:
+\startlocaldefs
+\endlocaldefs
+
+
+%%% Begin ...
+\begin{document}
+
+%%% Start of article front matter
+\begin{frontmatter}
+
+\begin{fmbox}
+\dochead{Data Note}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% Enter the title of your article here     %%
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\title{An Open and Extensible Database of Validated Extreme Air Pollution Events for Health Research}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% Enter the authors here                   %%
+%%                                          %%
+%% Specify information, if available,       %%
+%% in the form:                             %%
+%%   <key>={<id1>,<id2>}                    %%
+%%   <key>=                                 %%
+%% Comment or delete the keys which are     %%
+%% not used. Repeat \author command as much %%
+%% as required.                             %%
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\author[
+   addressref={aff1},                   % id's of addresses, e.g. {aff1,aff2}
+   corref={aff1},                       % id of corresponding address, if any
+%   noteref={n1},                        % id's of article notes, if any
+   email={ivan.hanigan@anu.edu.au}   % email address
+]{\inits{IC}\fnm{Ivan C} \snm{Hanigan}}
+\author[
+   addressref={aff2},
+   email={fay.johnston@utas.edu.au}
+]{\inits{FH}\fnm{Fay H} \snm{Johnston}}
+\author[
+   addressref={aff3},
+   email={geoff.morgan@nsw.gov.au}
+]{\inits{GG}\fnm{Geoff G} \snm{Morgan}}
+\author[
+   addressref={aff2},
+   email={someone@somewhere.com.au}
+]{\inits{SS}\fnm{Someone} \snm{Else}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% Enter the authors' addresses here        %%
+%%                                          %%
+%% Repeat \address commands as much as      %%
+%% required.                                %%
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\address[id=aff1]{%                           % unique id
+  \orgname{National Centre of Epidemiology, ANU}, % university, etc
+  \street{Eggleston Road},                     %
+  %\postcode{}                                % post or zip code
+  \city{Canberra},                              % city
+  \cny{AU}                                    % country
+}
+\address[id=aff2]{%
+  \orgname{Menzies School, UTAS},
+  \street{D\"{u}sternbrooker Weg 20},
+  \postcode{}
+  \city{Hobart},
+  \cny{AU}
+}
+\address[id=aff3]{%
+  \orgname{University of Sydney, NSW},
+  \street{D\"{u}sternbrooker Weg 20},
+  \postcode{}
+  \city{Sydney},
+  \cny{AU}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% Enter short notes here                   %%
+%%                                          %%
+%% Short notes will be after addresses      %%
+%% on first page.                           %%
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\begin{artnotes}
+%\note{Sample of title note}     % note to the article
+%\note[id=n1]{Equal contributor} % note, connected to author
+%\end{artnotes}
+
+\end{fmbox}% comment this for two column layout
+#+end_src
+*** abstract-methods
+#+begin_src sh :session *shell* :tangle vignettes/BiosmokeValidatedEvents_DataNote.tex :exports none :eval no :padline no
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% The Abstract begins here                 %%
+%%                                          %%
+%% Please refer to the Instructions for     %%
+%% authors on http://www.biomedcentral.com  %%
+%% and include the section headings         %%
+%% accordingly for your article type.       %%
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{abstractbox}
+
+\begin{abstract} % abstract
+\parttitle{Background} %if any
+Epidemiological studies of the health effects of
+biomass smoke events (such as bushfires or wood-heater smoke spikes due
+to inversion layers) have been hampered by the availability of datasets
+that explicitly pertain to these sources. Extreme air pollution events
+may also be caused by dust storms, fossil fuel induced smog events or
+factory fires. This paper presents an open and extensible database
+developed by the authors to identify historical spikes in PM
+concentrations and to evaluate whether they were caused by vegetation
+fire smoke or by other possible sources. These methods provide a
+systematic framework for retrospective identification of the air quality
+impacts of biomass smoke in a region that is seasonally affected by
+fires. In this paper, we describe the database and data aquisition
+methods, as well as analytical considerations when validating historical
+events using a range of reference types.
+
+\parttitle{Methods} %if any
+ Several major urban centers and smaller regional towns
+in the Australian states of New South Wales, Western Australia, and
+Tasmania were selected as they are intermittently affected by extreme
+episodes of vegetation fire smoke. Air pollution data was collated and
+missing values were imputed. Extreme values were identified and a range
+of sources of reference information were assessed for each date.
+Reference types online newspaper archives, government and research
+agency records, satellite imagery and a Dust Storms database.
+
+\parttitle{Results}
+This dataset contains validated events of extreme
+biomass smoke pollution across Australian cities. The authors have
+previously demonstrated the utility of this database in analyses of
+hospital admissions and mortality data for these locations to quantify
+the pollution-related health effects of these events.
+
+\parttitle{Conclusions}
+The database was created using open source
+software and this makes the prospect for future extensions to the
+database possible. THis is because if other scientists notice an
+ommision or error in these data they can offer an amendment. We believe
+that this will improve the database and benefit the whole biomass smoke
+health research community.
+
+\end{abstract}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% The keywords begin here                  %%
+%%                                          %%
+%% Put each keyword in separate \kwd{}.     %%
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{keyword}
+\kwd{sample}
+\kwd{article}
+\kwd{author}
+\end{keyword}
+
+% MSC classifications codes, if any
+%\begin{keyword}[class=AMS]
+%\kwd[Primary ]{}
+%\kwd{}
+%\kwd[; secondary ]{}
+%\end{keyword}
+
+\end{abstractbox}
+%
+%\end{fmbox}% uncomment this for twcolumn layout
+
+\end{frontmatter}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% The Main Body begins here                %%
+%%                                          %%
+%% Please refer to the instructions for     %%
+%% authors on:                              %%
+%% http://www.biomedcentral.com/info/authors%%
+%% and include the section headings         %%
+%% accordingly for your article type.       %%
+%%                                          %%
+%% See the Results and Discussion section   %%
+%% for details on how to create sub-sections%%
+%%                                          %%
+%% use \cite{...} to cite references        %%
+%%  \cite{koon} and                         %%
+%%  \cite{oreg,khar,zvai,xjon,schn,pond}    %%
+%%  \nocite{smith,marg,hunn,advi,koha,mouse}%%
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%% start of article main body
+% <put your article body there>
+
+%%%%%%%%%%%%%%%%
+%% Background %%
+%%
+
+%\section*{Background}
+
+%Following the other paper.
+
+\section*{Findings}
+
+\input{methods}
+
+The LaTeX template needs bibtex style citations, so here is one to ensure the compiler works while creating drafts.  The main paper to cite is \cite{Johnston2011c}.
+
+#+end_src
+*** snip
+#+begin_src sh :session *shell* :tangle no :exports none :eval no :padline no
+
+%\section*{Content}
+%Text and results for this section, as per the individual journal's instructions for authors. %\cite{koon,oreg,khar,zvai,xjon,schn,pond,smith,marg,hunn,advi,koha,mouse}
+
+%\section*{Section title}
+Text for this section \ldots
+\subsection*{Sub-heading for section}
+Text for this sub-heading \ldots
+\subsubsection*{Sub-sub heading for section}
+Text for this sub-sub-heading \ldots
+\paragraph*{Sub-sub-sub heading for section}
+Text for this sub-sub-sub-heading \ldots
+In this section we examine the growth rate of the mean of $Z_0$, $Z_1$ and $Z_2$. In
+addition, we examine a common modeling assumption and note the
+importance of considering the tails of the extinction time $T_x$ in
+studies of escape dynamics.
+We will first consider the expected resistant population at $vT_x$ for
+some $v>0$, (and temporarily assume $\alpha=0$)
+%
+\[
+ E \bigl[Z_1(vT_x) \bigr]= E
+\biggl[\mu T_x\int_0^{v\wedge
+1}Z_0(uT_x)
+\exp \bigl(\lambda_1T_x(v-u) \bigr)\,du \biggr].
+\]
+%
+If we assume that sensitive cells follow a deterministic decay
+$Z_0(t)=xe^{\lambda_0 t}$ and approximate their extinction time as
+$T_x\approx-\frac{1}{\lambda_0}\log x$, then we can heuristically
+estimate the expected value as
+%
+\begin{eqnarray}\label{eqexpmuts}
+E\bigl[Z_1(vT_x)\bigr] &=& \frac{\mu}{r}\log x
+\int_0^{v\wedge1}x^{1-u}x^{({\lambda_1}/{r})(v-u)}\,du
+\nonumber\\
+&=& \frac{\mu}{r}x^{1-{\lambda_1}/{\lambda_0}v}\log x\int_0^{v\wedge
+1}x^{-u(1+{\lambda_1}/{r})}\,du
+\nonumber\\
+&=& \frac{\mu}{\lambda_1-\lambda_0}x^{1+{\lambda_1}/{r}v} \biggl(1-\exp \biggl[-(v\wedge1) \biggl(1+
+\frac{\lambda_1}{r}\biggr)\log x \biggr] \biggr).
+\end{eqnarray}
+%
+Thus we observe that this expected value is finite for all $v>0$ (also see \cite{koon,khar,zvai,xjon,marg}).
+%\nocite{oreg,schn,pond,smith,marg,hunn,advi,koha,mouse}
+#+end_src
+*** back
+#+begin_src sh :session *shell* :tangle vignettes/BiosmokeValidatedEvents_DataNote.tex :exports none :eval no :padline no
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% Backmatter begins here                   %%
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{backmatter}
+
+\section*{Competing interests}
+  The authors declare that they have no competing interests.
+
+\section*{Author's contributions}
+    Text for this section \ldots
+
+\section*{Acknowledgements}
+  Text for this section \ldots
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                  The Bibliography                       %%
+%%                                                         %%
+%%  Bmc_mathpys.bst  will be used to                       %%
+%%  create a .BBL file for submission.                     %%
+%%  After submission of the .TEX file,                     %%
+%%  you will be prompted to submit your .BBL file.         %%
+%%                                                         %%
+%%                                                         %%
+%%  Note that the displayed Bibliography will not          %%
+%%  necessarily be rendered by Latex exactly as specified  %%
+%%  in the online Instructions for Authors.                %%
+%%                                                         %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% if your bibliography is in bibtex format, use those commands:
+\bibliographystyle{bmc-mathphys} % Style BST file (bmc-mathphys, vancouver, spbasic).
+\bibliography{bmc_article}      % Bibliography file (usually '*.bib' )
+% for author-year bibliography (bmc-mathphys or spbasic)
+% a) write to bib file (bmc-mathphys only)
+% @settings{label, options="nameyear"}
+% b) uncomment next line
+%\nocite{label}
+
+% or include bibliography directly:
+% \begin{thebibliography}
+% \bibitem{b1}
+% \end{thebibliography}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                               %%
+%% Figures                       %%
+%%                               %%
+%% NB: this is for captions and  %%
+%% Titles. All graphics must be  %%
+%% submitted separately and NOT  %%
+%% included in the Tex document  %%
+%%                               %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%
+%% Do not use \listoffigures as most will included as separate files
+
+\section*{Figures}
+  \begin{figure}[h!]
+  \caption{\csentence{Sample figure title.}
+      A short description of the figure content
+      should go here.}
+      \end{figure}
+
+\begin{figure}[h!]
+  \caption{\csentence{Sample figure title.}
+      Figure legend text.}
+      \end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                               %%
+%% Tables                        %%
+%%                               %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Use of \listoftables is discouraged.
+%%
+\section*{Tables}
+\begin{table}[h!]
+\caption{Sample table title. This is where the description of the table should go.}
+      \begin{tabular}{cccc}
+        \hline
+           & B1  &B2   & B3\\ \hline
+        A1 & 0.1 & 0.2 & 0.3\\
+        A2 & ... & ..  & .\\
+        A3 & ..  & .   & .\\ \hline
+      \end{tabular}
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                               %%
+%% Additional Files              %%
+%%                               %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section*{Additional Files}
+  \subsection*{Additional file 1 --- Sample additional file title}
+    Additional file descriptions text (including details of how to
+    view the file, if it is in a non-standard format or the file extension).  This might
+    refer to a multi-page table or a figure.
+
+  \subsection*{Additional file 2 --- Sample additional file title}
+    Additional file descriptions text.
+
+
+\end{backmatter}
+\end{document}
+
+#+end_src
