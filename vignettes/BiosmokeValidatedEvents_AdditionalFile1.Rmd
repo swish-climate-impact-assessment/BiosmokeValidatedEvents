@@ -1,0 +1,36 @@
+---
+title: "Biosmoke Validated Events Database Instructions for Accessing"
+author: "Ivan C. Hanigan"
+date: "10 July 2015"
+output:
+  html_document:
+    toc: true
+documentclass: article    
+---
+
+# Introduction 
+
+These instructions are for users to access the database to browse or download data.
+A password is required and available on request to the corresponding author.
+
+# MS Access
+
+- Download and install the latest version of psqlODBC from: [http://www.postgresql.org/ftp/odbc/versions/msi/](http://www.postgresql.org/ftp/odbc/versions/msi/)
+- Please note: If running a 64-bit version of Windows, you will want to download and install BOTH the psqlodbc_XX_XX_XXXX.zip and psqlodbc_XX_XX_XXXX-x64.zip file. 
+- Assuming you use the 32 bit windows office suite (recommended) then use the command below to open the ODBC connections tool and add a DSN for your postgres database
+- Go to Start -> Run (or Press Windows+R keys) and enter 
+
+```
+    %WINDIR%\SysWOW64\odbcad32.exe
+```
+
+- On either the User DSN (DSNs available for only that user) or System DSN (DSNs available to every user) tab, click the Add button. Scroll - down the list and find the PostgreSQL ODBC Driver.
+- You may select ANSI or UNICODE (For future support I personally prefer UNICODE), and click Finish.
+- Data Source refers to the programmable name of the DSN Entry. Stick to lower-case letters and underscores. Ex: psql_server
+- Specify the Database, Server, User Name and Password to your PostgreSQL server.
+- Click the Test button to ensure everything has been specified correctly.
+- Click the Save button to create the DSN.
+
+# pgAdmin for PostgreSQL management
+
+![img/test.png](img/test.png)
