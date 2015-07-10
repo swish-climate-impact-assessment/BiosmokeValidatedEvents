@@ -248,9 +248,6 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
   projectdir <- "~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents"
   setwd(projectdir)
   library(rpostgrestools)
-  #require(R2HTML)
-  #require(maptools)
-  
   # you will need to request username and password
   ch <- connect2postgres2("ewedb_staging")
   
@@ -490,11 +487,11 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
 **** main missing dates-code
 #+name:main missing dates
 #+begin_src R :session *R* :tangle inst/doc/main.R :exports none :eval no
-#### name:main missing dates ####
+#### Do the processing
 source("01_prepare_dates.R")
 #+end_src
 
-*** 3.2 loop
+*** a lot of functions and a loop
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
   
   Step 3.2. Loop over each station individually and calculate a daily
@@ -636,6 +633,7 @@ source("01_prepare_dates.R")
   #' @param town town
   #' @param poll pollutant
   #' @param stat statistical unit as per avg or max
+  #' @param maxdate the end of the time series
   #' @return database table
   
   impute <- function(
@@ -828,38 +826,479 @@ source("01_prepare_dates.R")
 **** COMMENT func n_missing
 #+name:func sites_todo
 #+begin_src R :session *R* :tangle R/sites_todo.R :exports none :eval yes
-  #' @name sites_todo
-  #' @title sites with potential
-
+  #' @name n_missing
+  #' @title number missing
+  #' @param town the one to do
+  #' @param poll pollutant
+  #' @param thresh theshold below which we will do it
+  #' @return nmissing is a message like 'go for it'
+  
+  n_missing <- function(town,poll,thresh=0.05){
+  
+  nmissing<- dbGetQuery(ch,
+  # cat(
+  paste("
+  select count(*) from
+  (
+  select 
+   t1.rawdate, avg(t2.",poll,") as citywide_",poll," , count(*)
+  from
+          (
+          select rawdate , avg(imputed_param) as ",poll,"
+          from pollution.imputed_",poll,"_",town,"
+          group by rawdate
+          having avg(imputed_param) is null
+          ) t1
+  ,
+          (
+          select rawdate , avg(imputed_param) as ",poll,"
+          from pollution.imputed_",poll,"_",town,"
+          group by rawdate
+          ) t2
+  where (t2.rawdate >= t1.rawdate-1 and  t2.rawdate <= t1.rawdate+1)
+  group by t1.rawdate
+  having count(t2.",poll,")>1
+  order by t1.rawdate
+  ) foo
+  ",sep="")
+  )
+  
+  noverall<- dbGetQuery(ch,
+  paste("select count(*) from
+  (
+  select rawdate , avg(imputed_param) as ",poll,"
+  from pollution.imputed_",poll,"_",town,"
+  group by rawdate
+  ) bar",sep="")
+  )
+  
+  if(nmissing/noverall<=thresh){"go for it"} else {"don't do the avg of the missing dates with before and after, too many"}
+  
+  }
+  
+  
+  
 #+end_src
 **** R n_missing
 #+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :eval no
+  # no avg all sites per day for city wide averages  
+  # AND fill any missing days with avg of before and after (if this is less than 5% of days)
+  # first make sure the number of missing days with one valid either side is < 5% of total days
+  n_missing(town,poll)
+  
+  # if = 'go for it'
 
 #+end_src
 **** COMMENT func citywide_av
 #+name:func sites_todo
 #+begin_src R :session *R* :tangle R/sites_todo.R :exports none :eval yes
-  #' @name sites_todo
-  #' @title sites with potential
-
+  #' @name citywide_av
+  #' @title city wide average
+  #' @param town
+  #' @param poll
+  #' @param stat
+  #' @return nothing to R, this creates things in the database
+  citywide_av <- function(town, poll, stat){
+  
+  # calculate and insert to temp table
+  try(dbSendQuery(ch,
+  #cat(
+  paste("drop TABLE pollution.",poll,"_",stat,"_events_",town,"_temp",sep='')
+  ),silent=T)
+  
+  dbSendQuery(ch,
+  #cat(
+  paste("CREATE TABLE pollution.",poll,"_",stat,"_events_",town,"_temp
+  (
+    date date NOT NULL,
+    ",poll,"_",stat," numeric,
+    ranked serial
+  )",sep="")
+  )
+  
+  dbSendQuery(ch,
+  #cat(
+  paste("
+  INSERT INTO pollution.",poll,"_",stat,"_events_",town,"_temp (
+      date, ",poll,"_",stat,")
+  select citywide.rawdate,
+          case when citywide.",poll," is null then citywide_",poll," else ",poll," end as citywide_",poll,"
+  from
+          (
+          select rawdate , avg(imputed_param) as ",poll,"
+          from pollution.imputed_",poll,"_",town,"
+          group by rawdate
+          ) citywide
+  left join
+          (
+          select 
+                  t1.rawdate, avg(t2.",poll,") as citywide_",poll," , count(*)
+          from
+                  (
+                  select rawdate , avg(imputed_param) as ",poll,"
+                  from pollution.imputed_",poll,"_",town,"
+                  group by rawdate
+                  having avg(imputed_param) is null
+                  ) t1
+          ,
+                  (
+                  select rawdate , avg(imputed_param) as ",poll,"
+                  from pollution.imputed_",poll,"_",town,"
+                  group by rawdate
+                  ) t2
+          where (t2.rawdate >= t1.rawdate-1 and  t2.rawdate <= t1.rawdate+1)
+          group by t1.rawdate
+          having count(t2.",poll,")>1
+          order by t1.rawdate
+          ) impute_missing_days
+  on citywide.rawdate=impute_missing_days.rawdate
+  where case when citywide.",poll," is null then citywide_",poll," else ",poll," end is not null
+  order by case when citywide.",poll," is null then citywide_",poll," else ",poll," end
+  ",sep="")
+  )
+  
+  # ok calculate % and insert to output table
+  dbSendQuery(ch,
+  #cat(
+  paste("drop TABLE pollution.",poll,"_",stat,"_events_",town,sep="")
+  )
+  
+  
+  dbSendQuery(ch,
+  #cat(
+  paste("CREATE TABLE pollution.",poll,"_",stat,"_events_",town,"
+  (
+    date date NOT NULL,
+    ",poll,"_",stat," numeric,
+    ranked numeric,
+    pctile numeric
+  )",sep="")
+  )
+  
+  dbSendQuery(ch,
+  #cat(
+  paste("
+  INSERT INTO pollution.",poll,"_",stat,"_events_",town," (
+              date, ",poll,"_",stat,",ranked,pctile)
+  select *, (cast(ranked as numeric)-1)/(
+          (
+          select count(*) from pollution.",poll,"_",stat,"_events_",town,"_temp
+          ) 
+  -1) as pctile
+  from pollution.",poll,"_",stat,"_events_",town,"_temp",sep="")
+  )
+  }
+  
 #+end_src
 **** R citywide_av
 #+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :eval no
+  
+  citywide_av(town,poll,stat)
+#+end_src
+**** R loop over all towns
+#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :eval no
+  for(i in 2:nrow(todo)){
+  # i=15
+  town=todo[i,1]
+  if(town=="Lower Hunter"){
+          town='Newcastle'
+          } else {
+          town=todo[i,1]
+          }
+  print(town)     
+  poll=todo[i,2]
+  print(poll)
+  mindate=todo[i,3]
+  print(mindate)
+  stat=todo[i,4]
+  print(stat)
+  
+  sitelist=sites_todo(town=town,mindate=mindate,poll=poll,stat=stat)
+  
+  #sitelist
+  
+  impute(sitelist, town, poll, stat)
+  
+  
+  nmissed=n_missing(town,poll)
+  print(nmissed)
+  if(nmissed=='go for it'){
+          citywide_av(town,poll,stat)
+          }
+          
+  }
+  
+  
+  # clean up
+  
+  dbSendQuery(ch,
+  # cat(
+  paste("drop table pollution.",'pm10',"_",c('av'),"_events_",gsub('Lower Hunter','Newcastle',towns),"_temp",sep='',collapse=';\n'))
+  
+  dbSendQuery(ch,
+  # cat(
+  paste("drop table pollution.",'pm25',"_",c('av'),"_events_",gsub('Lower Hunter','Newcastle',towns),"_temp",sep='',collapse=';\n'))
+  
+  dbSendQuery(ch,
+  # cat(
+  paste("drop table pollution.",'o3',"_",c('max'),"_events_",gsub('Lower Hunter','Newcastle',towns[1:4]),"_temp",sep='',collapse=';\n'))
 
 #+end_src
 **** COMMENT func stitch_together
 #+name:func sites_todo
 #+begin_src R :session *R* :tangle R/sites_todo.R :exports none :eval yes
-  #' @name sites_todo
-  #' @title sites with potential
-
+  #' @name stitch_together
+  #' @title put all the bits together
+  #' @param poll pollutant
+  #' @return tables in the database
+  stitch_together <- function(poll=polls[5,3]){
+  
+  print(poll)
+  
+  # NB only once!
+  
+  exist<- dbGetQuery(ch,
+  #cat(
+  paste("select * from pollution.",poll,"_",stat,"_events_all_regions limit 1",sep='')
+  )
+  
+  if(length(nrow(exist))==0){
+  
+          dbSendQuery(ch,
+          #cat(
+          paste("CREATE TABLE pollution.",poll,"_",stat,"_events_all_regions
+          (
+            region text,
+            date date NOT NULL,
+            ",poll,"_",stat," numeric,
+            ranked numeric,
+            pctile numeric
+          )",sep="")
+          )
+  
+  }
+  
+  rm(exist)
+  
+  for(town in towns){
+  if(town=="Lower Hunter"){
+          town='Newcastle'
+          }
+          
+          # dbSendQuery(ch,
+          # # cat(
+          # paste("delete from pollution.",poll,"_",stat,"_events_all_regions where region = \'",town,"\'",sep="")
+          # )
+  
+          dbSendQuery(ch,
+          # cat(
+          paste("insert into pollution.",poll,"_",stat,"_events_all_regions (region, date, ",poll,"_",stat,", ranked, pctile)
+          select '",town,"', date, ",poll,"_",stat,", ranked, pctile
+          from  pollution.",poll,"_",stat,"_events_",town,sep="")
+          )
+  
+  }
+  
+  }
+  
+  
 #+end_src
 **** R stitch_together
 #+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :eval no
+  
+  stitch_together(poll=polls[5,3])
+  stitch_together(poll=polls[7,3])
+  stitch_together(poll=polls[4,3])
 
 #+end_src
+#+end_src
+**** COMMENT R main-code
+#+name:main
+#+begin_src R :session *R* :tangle inst/doc/main.R :exports none :eval no
+  source("02_loop_over_stations_calculate_net_avg.R")
+  source("03_calc_extreme_events.R")
+  # Now Manually validate events
+  source("04_qc_checks.R")
+  
+#+end_src
 
+**** R QC
+#+begin_src R :session *R* :tangle inst/doc/04_qc_checks.R :exports none :eval no
+  
+  # check for duplicates
+  # SELECT region, date,count(*)
+    # FROM pollution.o3_max_events_all_regions
+    # group by region,date
+    # having count(*)>1
+  
+  # may have crept in via the station dates process?  
+   
+  dbSendQuery(ch,'grant all on table pollution.pm10_av_events_all_regions to biosmoke_group')
+   
+  dbSendQuery(ch,'grant all on table pollution.pm25_av_events_all_regions to biosmoke_group')
+   
+  dbSendQuery(ch,'grant all on table pollution.o3_max_events_all_regions to biosmoke_group')
+  
+  ############################################################# 
+  # summarise  
+  
+  # TODO: this needs to be looped thru todo rows so the mindate can be selected and missing days counted?
+  
+  descstats=data.frame(matrix(nrow=0,ncol=15))
+  descstats
+  for(i in 1:nrow(todo)){
+  # i=1
+  town=todo[i,1]
+  if(town=="Lower Hunter"){
+          town='Newcastle'
+          } else {
+          town=todo[i,1]
+          }
+  print(town)     
+  poll=todo[i,2]
+  print(poll)
+  
+  if(town=="PERTH" & poll=='pm25'){
+  mindate=as.factor("'1994-03-01'")
+          } else {
+  mindate=todo[i,3]
+          }
+  
+  
+  
+  print(mindate)
+  stat=todo[i,4]
+  print(stat)
+  
+  # town=towns[1]
+  # print(town)   
+          # dbSendQuery(ch,
+          # # cat(
+          # paste("delete from pollution.",poll,"_",stat,"_events_all_regions where region = \'",town,"\'",sep="")
+          # )
+  
+  d<- dbGetQuery(ch,
+          # cat(
+          paste("select t1.date as fulldate, t2.*
+          from  
+          (select distinct date from pollution.stationdates_",town,"_",poll," where date >= ",mindate,") t1 
+          left join 
+          (select * from pollution.",poll,"_",stat,"_events_all_regions where region =\'",town,"\') as t2
+          on t1.date=t2.date",sep="")
+          )
+          
+  counts<- dbGetQuery(ch,
+  # cat(
+  paste("select \'99\', count(*)
+  from
+  (
+  SELECT region, date, ",poll,"_",stat,", ranked, pctile
+    FROM pollution.",poll,"_",stat,"_events_all_regions
+    where region = \'",town,"\' and pctile >= .99
+    ) foo
+  union all
+  select \'97-98\', count(*)
+  from
+  (
+  SELECT region, date, ",poll,"_",stat,", ranked, pctile
+    FROM pollution.",poll,"_",stat,"_events_all_regions
+    where region = \'",town,"\'  and (pctile >= .97 and pctile < .99)
+    ) foo
+  union all
+  select \'95-96\', count(*)
+  from
+  (
+  SELECT region, date, ",poll,"_",stat,", ranked, pctile
+    FROM pollution.",poll,"_",stat,"_events_all_regions
+    where region = \'",town,"\'  and (pctile >= .95 and pctile < .97)
+    ) foo
+  union all
+  select \'95+\', count(*)
+  from
+  (
+  SELECT region, date, ",poll,"_",stat,", ranked, pctile
+    FROM pollution.",poll,"_",stat,"_events_all_regions
+    where region = \'",town,"\' and pctile >= .95
+    ) foo;",sep="")
+  )
+          
+  head(d)
+  descstats=rbind(descstats,
+  data.frame(t(c(as.character(town),
+          paste(poll,stat),
+          nrow(d),
+          as.character(min(d$fulldate)),
+          as.character(max(d$fulldate)),
+          quantile(d[,4],.99,na.rm=T),
+          quantile(d[,4],.97,na.rm=T),
+          quantile(d[,4],.95,na.rm=T),
+          counts[1,2],
+          counts[2,2],
+          counts[3,2],
+          counts[4,2],
+          t(
+          if (length(names(summary(d[,4])))==6) {
+          c(summary(d[,4]),NA)
+          } else {
+          summary(d[,4])
+          }
+          ))))
+  )
+  
+  
+  }
+  
+  names(descstats)=c('town','poll','numDays','mindate','maxdate','99','97','95','N99','N97_98','N95_96','N95',names(summary(d[,4])))
+  descstats
+  write.csv(descstats,'descstats.csv',row.names=F)
+  
+  
+  
+  # I did some manual validation against the original files
+  #M:\Environmental_Health\Bushfires\Exposures\TAS
+  # etc
+  # checked mindates, poll values, even if the single missing days were filled with av of prior and next.
+  # for each in todo list.
+  # all looks good.
+  # only issue was perth mindate for pm2.5 which was no longer cavershamB 15/2/94 but now cavA 1/3/94
+    
+  # so this caveat is embedded in a if else in the descriptive stats above  
+  
+  
+  #########################################################################################################
+  # not changed is the underlying calculation of the percentiles as this would produce trivial changes to the percentile levels.
+  ######################################################################################################### 
+  
+  ######################################################################################################### 
+  # NB I did not double check the OZONE values.
+  
+  # useful code
+  # select t1.date as fulldate, t2.*
+  # from  
+  # (select distinct date from pollution.stationdates_Sydney_pm10 where date >= '1994-01-10') t1 
+  # left join 
+  # (select * from pollution.pm10_av_events_all_regions where region ='Newcastle') as t2
+  # on t1.date=t2.date
+  
+  
+  # select *  
+  # from  
+  # (select distinct date from pollution.stationdates_illawarra_pm25 where date = '1998-03-01') t1 
+  # left join 
+  # (
+  # select pollution.combined_pollutants.* 
+  # from pollution.combined_pollutants 
+  # join 
+  # spatial.pollution_stations_combined_final
+  # on
+  # pollution.combined_pollutants.site=spatial.pollution_stations_combined_final.site 
+  # where region = 'Illawara'
+  # ) t2
+  # on t1.date=t2.date
+    
+    
 
+#+end_src
 *** step4
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
   
@@ -874,6 +1313,72 @@ source("01_prepare_dates.R")
   references.
   
 #+end_src
+**** TODO 03_calc_extreme_events.R
+
+**** COMMENT func QC missing99
+#+name:func sites_todo
+#+begin_src R :session *R* :tangle R/sites_todo.R :exports none :eval yes
+  #' @name   missing99
+  #' @title   99th centile missing references of any type
+  #' @param poll pollutant
+  #' @return list of dates
+  missing99 <- function(poll){
+  dat <- dbSendQuery(ch,
+  # cat(
+  paste("
+  create or replace view pollution.",poll,"_to_check
+  as 
+  select ",poll,".*, eventid,refid, eventtype, place,mindate,maxdate, field3,field5, field7
+  from
+  pollution.",poll,"_av_events_all_regions as ",poll,"
+  left join
+  (
+          SELECT t1.date, t2.*
+          FROM 
+                  pollution.",poll,"_",stat,"_events_all_regions t1
+          ,
+                  (
+                  select tab1.*, 
+                  case when place like 'Sydney%' then 'Sydney' else place end as region,
+                  field3,field5, field7 from
+                  ivan_hanigan.tblevents tab1
+                  join ivan_hanigan.tblreferences tab2
+                  on tab1.refid=tab2.refid
+                  ) t2
+          where t1.region=t2.region and 
+                  (
+                  t1.date=t2.mindate 
+                  or
+                  (t1.date >= t2.mindate and t1.date <= t2.maxdate)
+                  )
+  ) checked
+  on ",poll,".date=checked.date
+  and ",poll,".region=checked.region 
+  where pctile>=.99 and mindate is null 
+    ORDER BY ",poll,".region, ",poll,".pctile DESC;
+  grant all on pollution.",poll,"_to_check to biosmoke_group
+  ",sep="")
+  )
+  return(dat)
+  }
+  
+  
+  
+#+end_src
+**** R QC missing99
+#+begin_src R :session *R* :tangle inst/doc/04_qc_checks.R :exports none :eval no
+  # identify 99% centile days with no refs.
+  missing99(poll=polls[5,3])
+  missing99(poll=polls[7,3])
+
+#+end_src
+** QC graphs and tables
+orig joining of events and pollution was from work PC
+I:/projects/1.302 Biomass/analysis/exposures/event validation/impute/quality_control/do.r
+
+
+head/projects/Biomass/data/pollution/summaryValidPollution4events
+I:\Dropbox\projects\1.302 Biomass\data\pollution\summaryValidPollution4events
 
 ** availability
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
