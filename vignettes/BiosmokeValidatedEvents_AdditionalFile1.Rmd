@@ -24,13 +24,21 @@ A password is required and available on request to the corresponding author.
     %WINDIR%\SysWOW64\odbcad32.exe
 ```
 
-- On either the User DSN (DSNs available for only that user) or System DSN (DSNs available to every user) tab, click the Add button. Scroll - down the list and find the PostgreSQL ODBC Driver.
-- You may select ANSI or UNICODE (For future support I personally prefer UNICODE), and click Finish.
-- Data Source refers to the programmable name of the DSN Entry. Stick to lower-case letters and underscores. Ex: psql_server
-- Specify the Database, Server, User Name and Password to your PostgreSQL server.
-- Click the Test button to ensure everything has been specified correctly.
+- On either the User DSN or System DSN tab, click the Add button - find the PostgreSQL ODBC Driver.
+- Select UNICODE, and click Finish.
+- Data Source = biosmoke_events
+- Database = ewedb
+- Server = brawn.anu.edu.au
+
+- image
+
+- User Name and Password will be supplied to you on request.
 - Click the Save button to create the DSN.
 
+
+
 # pgAdmin for PostgreSQL management
+
+pgAdmin is recommended for advanced users
 
 ![img/test.png](img/test.png)
