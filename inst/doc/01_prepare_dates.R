@@ -1,4 +1,3 @@
-
 #################################################################
 # to identify sites to be included need to know how many missing days.
 # first create complete set of statoiondates for the sites per town

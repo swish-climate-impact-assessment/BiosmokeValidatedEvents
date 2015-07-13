@@ -1,4 +1,3 @@
-
 #' @name citywide_av
 #' @title city wide average
 #' @param town
@@ -10,12 +9,12 @@ citywide_av <- function(town, poll, stat){
 # calculate and insert to temp table
 try(dbSendQuery(ch,
 #cat(
-paste("drop TABLE pollution.",poll,"_",stat,"_events_",town,"_temp",sep='')
+paste("drop TABLE biosmoke_pollution.",poll,"_",stat,"_events_",town,"_temp",sep='')
 ),silent=T)
 
 dbSendQuery(ch,
 #cat(
-paste("CREATE TABLE pollution.",poll,"_",stat,"_events_",town,"_temp
+paste("CREATE TABLE biosmoke_pollution.",poll,"_",stat,"_events_",town,"_temp
 (
   date date NOT NULL,
   ",poll,"_",stat," numeric,
@@ -26,14 +25,14 @@ paste("CREATE TABLE pollution.",poll,"_",stat,"_events_",town,"_temp
 dbSendQuery(ch,
 #cat(
 paste("
-INSERT INTO pollution.",poll,"_",stat,"_events_",town,"_temp (
+INSERT INTO biosmoke_pollution.",poll,"_",stat,"_events_",town,"_temp (
     date, ",poll,"_",stat,")
 select citywide.rawdate,
         case when citywide.",poll," is null then citywide_",poll," else ",poll," end as citywide_",poll,"
 from
         (
         select rawdate , avg(imputed_param) as ",poll,"
-        from pollution.imputed_",poll,"_",town,"
+        from biosmoke_pollution.imputed_",poll,"_",town,"
         group by rawdate
         ) citywide
 left join
@@ -43,14 +42,14 @@ left join
         from
                 (
                 select rawdate , avg(imputed_param) as ",poll,"
-                from pollution.imputed_",poll,"_",town,"
+                from biosmoke_pollution.imputed_",poll,"_",town,"
                 group by rawdate
                 having avg(imputed_param) is null
                 ) t1
         ,
                 (
                 select rawdate , avg(imputed_param) as ",poll,"
-                from pollution.imputed_",poll,"_",town,"
+                from biosmoke_pollution.imputed_",poll,"_",town,"
                 group by rawdate
                 ) t2
         where (t2.rawdate >= t1.rawdate-1 and  t2.rawdate <= t1.rawdate+1)
@@ -65,15 +64,16 @@ order by case when citywide.",poll," is null then citywide_",poll," else ",poll,
 )
 
 # ok calculate % and insert to output table
-dbSendQuery(ch,
+try(dbSendQuery(ch,
 #cat(
-paste("drop TABLE pollution.",poll,"_",stat,"_events_",town,sep="")
-)
+paste("drop TABLE biosmoke_pollution.",poll,"_",stat,"_events_",town,sep="")
+),silent=T)
 
 
+
 dbSendQuery(ch,
 #cat(
-paste("CREATE TABLE pollution.",poll,"_",stat,"_events_",town,"
+paste("CREATE TABLE biosmoke_pollution.",poll,"_",stat,"_events_",town,"
 (
   date date NOT NULL,
   ",poll,"_",stat," numeric,
@@ -85,13 +85,14 @@ paste("CREATE TABLE pollution.",poll,"_",stat,"_events_",town,"
 dbSendQuery(ch,
 #cat(
 paste("
-INSERT INTO pollution.",poll,"_",stat,"_events_",town," (
+INSERT INTO biosmoke_pollution.",poll,"_",stat,"_events_",town," (
             date, ",poll,"_",stat,",ranked,pctile)
 select *, (cast(ranked as numeric)-1)/(
         (
-        select count(*) from pollution.",poll,"_",stat,"_events_",town,"_temp
+        select count(*) from biosmoke_pollution.",poll,"_",stat,"_events_",town,"_temp
         ) 
 -1) as pctile
-from pollution.",poll,"_",stat,"_events_",town,"_temp",sep="")
+from biosmoke_pollution.",poll,"_",stat,"_events_",town,"_temp",sep="")
 )
+
 }

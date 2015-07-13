@@ -37,7 +37,7 @@
 #+end_src
 ** run-able R
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval yes :padline no
-  setwd("~/data/BiosmokeValidatedEvents")
+  setwd("~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents")
   library(rmarkdown)
   library(knitr)
   library(knitcitations)
@@ -243,7 +243,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
 #+end_src
 
 **** main
-#+begin_src R :session *R* :tangle inst/doc/main.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/main.R :exports none :padline no :eval no
   #################################################################
   projectdir <- "~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents"
   setwd(projectdir)
@@ -253,7 +253,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
   
 #+end_src
 **** main setup list of towns
-#+begin_src R :session *R* :tangle inst/doc/main.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/main.R :exports none :padline no :eval no
     
   
   #################################################################
@@ -262,7 +262,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
 #+end_src
 
 **** main setup list of pollutants
-#+begin_src R :session *R* :tangle inst/doc/main.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/main.R :exports none :padline no :eval no
     
   
   #################################################################
@@ -285,7 +285,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
 
 **** func mindates_pollutant-code
 #+name:mindates_pollutant
-#+begin_src R :session *R* :tangle R/mindates_pollutant.R :exports none :eval yes
+#+begin_src R :session *R* :tangle R/mindates_pollutant.R :exports none :padline no :eval yes
   #' @name mindates_pollutant
   #' @title Minimum Date a Pollutant is observed from 
   #' @param town the Biomass Study Town in question
@@ -333,7 +333,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
 #+RESULTS: mindates_pollutant
 **** func all_stations_all_dates-code
 #+name:all_stations_all_dates
-#+begin_src R :session *R* :tangle R/all_stations_all_dates.R :exports none :eval yes
+#+begin_src R :session *R* :tangle R/all_stations_all_dates.R :exports none :padline no :eval yes
   #' @name all_stations_all_dates
   #' @title All Stations, All Dates
   #' @param town Biomass Study area
@@ -373,7 +373,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
 #+RESULTS: all_stations_all_dates
 
 **** missing dates are added for completeness
-#+begin_src R :session *R* :tangle inst/doc/01_prepare_dates.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/01_prepare_dates.R :exports none :padline no :eval no
   #################################################################
   # to identify sites to be included need to know how many missing days.
   # first create complete set of statoiondates for the sites per town
@@ -486,7 +486,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
 
 **** main missing dates-code
 #+name:main missing dates
-#+begin_src R :session *R* :tangle inst/doc/main.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/main.R :exports none :padline no :eval no
 #### Do the processing
 source("01_prepare_dates.R")
 #+end_src
@@ -514,7 +514,9 @@ source("01_prepare_dates.R")
 
 #+end_src
 **** R setup the mindates/polls/towns
-#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/main.R :exports none :padline no :eval no
+  
+  #### Set up a list of things to do in order ####
   todo=cbind(towns,rep('pm10',length(towns)),c("'1997-05-23'","'1994-01-01'","'1994-02-15'",
   "'1994-02-02'","'2006-04-22'" ,"'2001-05-01'"))
   
@@ -537,7 +539,7 @@ source("01_prepare_dates.R")
 
 **** COMMENT func sites_todo-code
 #+name:func sites_todo
-#+begin_src R :session *R* :tangle R/sites_todo.R :exports none :eval yes
+#+begin_src R :session *R* :tangle R/sites_todo.R :exports none :padline no :eval yes
   #' @name sites_todo
   #' @title sites with potential
   #' @param town
@@ -616,7 +618,7 @@ source("01_prepare_dates.R")
 #+RESULTS: func
 
 **** R sites_todo
-#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :padline no :eval no
   #### sites_todo
   txt <- sites_todo(town=town,mindate=mindate,poll=poll,stat=stat)
   cat(txt)
@@ -626,7 +628,7 @@ source("01_prepare_dates.R")
 #+end_src
 **** COMMENT func impute
 #+name:func sites_todo
-#+begin_src R :session *R* :tangle R/impute.R :exports none :eval yes
+#+begin_src R :session *R* :tangle R/impute.R :exports none :padline no :eval yes
   #' @name impute
   #' @title impute for each site
   #' @param sitelist sites
@@ -673,7 +675,7 @@ source("01_prepare_dates.R")
   
   
   for(loc in sitelist[1:length(sitelist)]){
-  #loc=sitelist[1]
+  # loc=sitelist[2]
   print(loc)
   
   # a) calculate a daily network average of all non-missing sites 
@@ -729,26 +731,26 @@ source("01_prepare_dates.R")
   into biosmoke_pollution.missingavg3mo
   from 
   (
-  SELECT biosmoke_pollution.stationdates_",town,"_",poll,".station as site, biosmoke_pollution.stationdates_",town,"_",poll,".date, ",poll,"_",stat," as param
+  SELECT biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station as site, biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date, ",poll,"_",stat," as param
   FROM
-  biosmoke_pollution.stationdates_",town,"_",poll,"
+  biosmoke_pollution.stationdates_",tolower(town),"_",poll,"
   left join
   biosmoke_pollution.combined_pollutants
-  on biosmoke_pollution.stationdates_",town,"_",poll,".station=biosmoke_pollution.combined_pollutants.site
-  and biosmoke_pollution.stationdates_",town,"_",poll,".date=biosmoke_pollution.combined_pollutants.date
-  where biosmoke_pollution.stationdates_",town,"_",poll,".station = '",sitelist[grep(loc,sitelist)],"'
-                          and biosmoke_pollution.stationdates_",town,"_",poll,".date >= ",mindate," and biosmoke_pollution.stationdates_",town,"_",poll,".date <= '",maxdate,"'
-  ) t1
-  ,(
-  SELECT biosmoke_pollution.stationdates_",town,"_",poll,".station as site, biosmoke_pollution.stationdates_",town,"_",poll,".date, ",poll,"_",stat," as param
+  on biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station=biosmoke_pollution.combined_pollutants.site
+  and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date=biosmoke_pollution.combined_pollutants.date
+  where biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station = '",sitelist[grep(loc,sitelist)],"'
+                          and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date >= ",mindate," and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date <= '",maxdate,"'
+  ) t1,
+  (
+  SELECT biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station as site, biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date, ",poll,"_",stat," as param
   FROM
-  biosmoke_pollution.stationdates_",town,"_",poll,"
+  biosmoke_pollution.stationdates_",tolower(town),"_",poll,"
   left join
   biosmoke_pollution.combined_pollutants
-  on biosmoke_pollution.stationdates_",town,"_",poll,".station=biosmoke_pollution.combined_pollutants.site
-  and biosmoke_pollution.stationdates_",town,"_",poll,".date=biosmoke_pollution.combined_pollutants.date
-  where biosmoke_pollution.stationdates_",town,"_",poll,".station = '",sitelist[grep(loc,sitelist)],"'
-                          and biosmoke_pollution.stationdates_",town,"_",poll,".date >= ",mindate," and biosmoke_pollution.stationdates_",town,"_",poll,".date <= '",maxdate,"'
+  on biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station=biosmoke_pollution.combined_pollutants.site
+  and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date=biosmoke_pollution.combined_pollutants.date
+  where biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station = '",sitelist[grep(loc,sitelist)],"'
+                          and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date >= ",mindate," and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date <= '",maxdate,"'
   ) t2
   where (t2.date >= (t1.date -45) and t2.date <= (t1.date+44))
   group by t1.date 
@@ -761,7 +763,7 @@ source("01_prepare_dates.R")
   print(endd-strt)
   
   # d) estimate missing days at missing sites and insert to output table
-  txt <- paste("INSERT INTO  biosmoke_pollution.imputed_",poll,"_",town,"  (
+  txt <- paste("INSERT INTO  biosmoke_pollution.imputed_",poll,"_",tolower(town),"  (
               site, rawdate, rawdata, date, networkavg, missingavg3mo, networkavg3mo, 
               imputed, imputed_param
                                                   )
@@ -769,17 +771,17 @@ source("01_prepare_dates.R")
               imputed, case when param is null then imputed else param end as imputed_param 
   from
   (
-  SELECT biosmoke_pollution.stationdates_",town,"_",poll,".station as site, biosmoke_pollution.stationdates_",town,"_",poll,".date, ",poll,"_",stat," as param
+  SELECT biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station as site, biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date, ",poll,"_",stat," as param
                   FROM
-                  biosmoke_pollution.stationdates_",town,"_",poll,"
+                  biosmoke_pollution.stationdates_",tolower(town),"_",poll,"
                   left join
                   biosmoke_pollution.combined_pollutants
-                  on biosmoke_pollution.stationdates_",town,"_",poll,".station=biosmoke_pollution.combined_pollutants.site
-                  and biosmoke_pollution.stationdates_",town,"_",poll,".date=biosmoke_pollution.combined_pollutants.date
-                                  where biosmoke_pollution.stationdates_",town,"_",poll,".date >= ",mindate,"
-                                          and biosmoke_pollution.stationdates_",town,"_",poll,".date <= '",maxdate,"'
-                                          and biosmoke_pollution.stationdates_",town,"_",poll,".station = '",loc,"'
-  order by biosmoke_pollution.stationdates_",town,"_",poll,".date
+                  on biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station=biosmoke_pollution.combined_pollutants.site
+                  and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date=biosmoke_pollution.combined_pollutants.date
+                                  where biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date >= ",mindate,"
+                                          and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date <= '",maxdate,"'
+                                          and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station = '",loc,"'
+  order by biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date
   ) raw
   left join
   (
@@ -819,13 +821,13 @@ source("01_prepare_dates.R")
   
 #+end_src
 **** R impute
-#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :padline no :eval no
   impute(sitelist, town, poll, stat)
   
 #+end_src
 **** COMMENT func n_missing
 #+name:func sites_todo
-#+begin_src R :session *R* :tangle R/n_missing.R :exports none :eval yes
+#+begin_src R :session *R* :tangle R/n_missing.R :exports none :padline no :eval yes
   #' @name n_missing
   #' @title number missing
   #' @param town the one to do
@@ -845,14 +847,13 @@ source("01_prepare_dates.R")
   from
           (
           select rawdate , avg(imputed_param) as ",poll,"
-          from pollution.imputed_",poll,"_",town,"
+          from biosmoke_pollution.imputed_",poll,"_",town,"
           group by rawdate
           having avg(imputed_param) is null
-          ) t1
-  ,
+          ) t1,
           (
           select rawdate , avg(imputed_param) as ",poll,"
-          from pollution.imputed_",poll,"_",town,"
+          from biosmoke_pollution.imputed_",poll,"_",town,"
           group by rawdate
           ) t2
   where (t2.rawdate >= t1.rawdate-1 and  t2.rawdate <= t1.rawdate+1)
@@ -864,10 +865,11 @@ source("01_prepare_dates.R")
   )
   
   noverall<- dbGetQuery(ch,
+  #cat(
   paste("select count(*) from
   (
   select rawdate , avg(imputed_param) as ",poll,"
-  from pollution.imputed_",poll,"_",town,"
+  from biosmoke_pollution.imputed_",poll,"_",town,"
   group by rawdate
   ) bar",sep="")
   )
@@ -880,18 +882,18 @@ source("01_prepare_dates.R")
   
 #+end_src
 **** R n_missing
-#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :padline no :eval no
   # no avg all sites per day for city wide averages  
   # AND fill any missing days with avg of before and after (if this is less than 5% of days)
   # first make sure the number of missing days with one valid either side is < 5% of total days
   n_missing(town,poll)
   
   # if = 'go for it'
-
+  
 #+end_src
 **** COMMENT func citywide_av
 #+name:func sites_todo
-#+begin_src R :session *R* :tangle R/citywide_av.R :exports none :eval yes
+#+begin_src R :session *R* :tangle R/citywide_av.R :exports none :padline no :eval yes
   #' @name citywide_av
   #' @title city wide average
   #' @param town
@@ -903,12 +905,12 @@ source("01_prepare_dates.R")
   # calculate and insert to temp table
   try(dbSendQuery(ch,
   #cat(
-  paste("drop TABLE pollution.",poll,"_",stat,"_events_",town,"_temp",sep='')
+  paste("drop TABLE biosmoke_pollution.",poll,"_",stat,"_events_",town,"_temp",sep='')
   ),silent=T)
   
   dbSendQuery(ch,
   #cat(
-  paste("CREATE TABLE pollution.",poll,"_",stat,"_events_",town,"_temp
+  paste("CREATE TABLE biosmoke_pollution.",poll,"_",stat,"_events_",town,"_temp
   (
     date date NOT NULL,
     ",poll,"_",stat," numeric,
@@ -919,14 +921,14 @@ source("01_prepare_dates.R")
   dbSendQuery(ch,
   #cat(
   paste("
-  INSERT INTO pollution.",poll,"_",stat,"_events_",town,"_temp (
+  INSERT INTO biosmoke_pollution.",poll,"_",stat,"_events_",town,"_temp (
       date, ",poll,"_",stat,")
   select citywide.rawdate,
           case when citywide.",poll," is null then citywide_",poll," else ",poll," end as citywide_",poll,"
   from
           (
           select rawdate , avg(imputed_param) as ",poll,"
-          from pollution.imputed_",poll,"_",town,"
+          from biosmoke_pollution.imputed_",poll,"_",town,"
           group by rawdate
           ) citywide
   left join
@@ -936,14 +938,14 @@ source("01_prepare_dates.R")
           from
                   (
                   select rawdate , avg(imputed_param) as ",poll,"
-                  from pollution.imputed_",poll,"_",town,"
+                  from biosmoke_pollution.imputed_",poll,"_",town,"
                   group by rawdate
                   having avg(imputed_param) is null
                   ) t1
           ,
                   (
                   select rawdate , avg(imputed_param) as ",poll,"
-                  from pollution.imputed_",poll,"_",town,"
+                  from biosmoke_pollution.imputed_",poll,"_",town,"
                   group by rawdate
                   ) t2
           where (t2.rawdate >= t1.rawdate-1 and  t2.rawdate <= t1.rawdate+1)
@@ -958,15 +960,16 @@ source("01_prepare_dates.R")
   )
   
   # ok calculate % and insert to output table
-  dbSendQuery(ch,
+  try(dbSendQuery(ch,
   #cat(
-  paste("drop TABLE pollution.",poll,"_",stat,"_events_",town,sep="")
-  )
+  paste("drop TABLE biosmoke_pollution.",poll,"_",stat,"_events_",town,sep="")
+  ),silent=T)
   
   
+  
   dbSendQuery(ch,
   #cat(
-  paste("CREATE TABLE pollution.",poll,"_",stat,"_events_",town,"
+  paste("CREATE TABLE biosmoke_pollution.",poll,"_",stat,"_events_",town,"
   (
     date date NOT NULL,
     ",poll,"_",stat," numeric,
@@ -978,25 +981,26 @@ source("01_prepare_dates.R")
   dbSendQuery(ch,
   #cat(
   paste("
-  INSERT INTO pollution.",poll,"_",stat,"_events_",town," (
+  INSERT INTO biosmoke_pollution.",poll,"_",stat,"_events_",town," (
               date, ",poll,"_",stat,",ranked,pctile)
   select *, (cast(ranked as numeric)-1)/(
           (
-          select count(*) from pollution.",poll,"_",stat,"_events_",town,"_temp
+          select count(*) from biosmoke_pollution.",poll,"_",stat,"_events_",town,"_temp
           ) 
   -1) as pctile
-  from pollution.",poll,"_",stat,"_events_",town,"_temp",sep="")
+  from biosmoke_pollution.",poll,"_",stat,"_events_",town,"_temp",sep="")
   )
+  
   }
   
 #+end_src
 **** R citywide_av
-#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :padline no :eval no
   
   citywide_av(town,poll,stat)
 #+end_src
 **** R loop over all towns
-#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :padline no :eval no
   for(i in 2:nrow(todo)){
   # i=15
   town=todo[i,1]
@@ -1013,8 +1017,8 @@ source("01_prepare_dates.R")
   stat=todo[i,4]
   print(stat)
   
-  sitelist=sites_todo(town=town,mindate=mindate,poll=poll,stat=stat)
-  
+  txt <- sites_todo(town=town,mindate=mindate,poll=poll,stat=stat)
+  sitelist <- dbGetQuery(ch, txt)[,1]
   #sitelist
   
   impute(sitelist, town, poll, stat)
@@ -1027,46 +1031,31 @@ source("01_prepare_dates.R")
           }
           
   }
-  
-  
-  # clean up
-  
-  dbSendQuery(ch,
-  # cat(
-  paste("drop table pollution.",'pm10',"_",c('av'),"_events_",gsub('Lower Hunter','Newcastle',towns),"_temp",sep='',collapse=';\n'))
-  
-  dbSendQuery(ch,
-  # cat(
-  paste("drop table pollution.",'pm25',"_",c('av'),"_events_",gsub('Lower Hunter','Newcastle',towns),"_temp",sep='',collapse=';\n'))
-  
-  dbSendQuery(ch,
-  # cat(
-  paste("drop table pollution.",'o3',"_",c('max'),"_events_",gsub('Lower Hunter','Newcastle',towns[1:4]),"_temp",sep='',collapse=';\n'))
-
-#+end_src
+#+end_src  
 **** COMMENT func stitch_together
 #+name:func sites_todo
-#+begin_src R :session *R* :tangle R/stitch_togethor.R :exports none :eval yes
+#+begin_src R :session *R* :tangle R/stitch_together.R :exports none :padline no :eval yes
   #' @name stitch_together
   #' @title put all the bits together
   #' @param poll pollutant
+  #' @param stat av or max
   #' @return tables in the database
-  stitch_together <- function(poll=polls[5,3]){
+  stitch_together <- function(poll=polls[5,3], stat = 'av'){
   
   print(poll)
   
   # NB only once!
-  
+  try(
   exist<- dbGetQuery(ch,
   #cat(
-  paste("select * from pollution.",poll,"_",stat,"_events_all_regions limit 1",sep='')
-  )
+  paste("select * from biosmoke_pollution.",poll,"_",stat,"_events_all_regions limit 1",sep='')
+  ), silent=T)
   
   if(length(nrow(exist))==0){
   
           dbSendQuery(ch,
           #cat(
-          paste("CREATE TABLE pollution.",poll,"_",stat,"_events_all_regions
+          paste("CREATE TABLE biosmoke_pollution.",poll,"_",stat,"_events_all_regions
           (
             region text,
             date date NOT NULL,
@@ -1084,18 +1073,28 @@ source("01_prepare_dates.R")
   if(town=="Lower Hunter"){
           town='Newcastle'
           }
+  try(
+  exist<- dbGetQuery(ch,
+  #cat(
+  paste("select * from biosmoke_pollution.",poll,"_",stat,"_events_",town," limit 1",sep='')
+  ), silent=T)
+  
+  if(length(nrow(exist))>0){
           
           # dbSendQuery(ch,
           # # cat(
-          # paste("delete from pollution.",poll,"_",stat,"_events_all_regions where region = \'",town,"\'",sep="")
+          # paste("delete from biosmoke_pollution.",poll,"_",stat,"_events_all_regions where region = \'",town,"\'",sep="")
           # )
   
           dbSendQuery(ch,
           # cat(
-          paste("insert into pollution.",poll,"_",stat,"_events_all_regions (region, date, ",poll,"_",stat,", ranked, pctile)
+          paste("insert into biosmoke_pollution.",poll,"_",stat,"_events_all_regions (region, date, ",poll,"_",stat,", ranked, pctile)
           select '",town,"', date, ",poll,"_",stat,", ranked, pctile
-          from  pollution.",poll,"_",stat,"_events_",town,sep="")
+          from  biosmoke_pollution.",poll,"_",stat,"_events_",town,sep="")
           )
+  
+  }
+  rm(exist)
   
   }
   
@@ -1104,40 +1103,140 @@ source("01_prepare_dates.R")
   
 #+end_src
 **** R stitch_together
-#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :padline no :eval no
   
-  stitch_together(poll=polls[5,3])
-  stitch_together(poll=polls[7,3])
-  stitch_together(poll=polls[4,3])
-
+  stitch_together(poll="PM10", stat = "av")
+  stitch_together(poll="PM25", stat = "av")
+  stitch_together(poll="O3", stat = "max")
+  dbSendQuery(ch,'grant all on table biosmoke_pollution.pm10_av_events_all_regions to biosmoke_user')   
+  dbSendQuery(ch,'grant all on table biosmoke_pollution.pm25_av_events_all_regions to biosmoke_user')
+  dbSendQuery(ch,'grant all on table biosmoke_pollution.o3_max_events_all_regions to biosmoke_user')
+  
 #+end_src
 #+end_src
 **** COMMENT R main-code
 #+name:main
-#+begin_src R :session *R* :tangle inst/doc/main.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/main.R :exports none :padline no :eval no
   source("02_loop_over_stations_calculate_net_avg.R")
   source("03_calc_extreme_events.R")
   # Now Manually validate events
   source("04_qc_checks.R")
   
 #+end_src
+**** R clean up intermediary tables
+#+begin_src R :session *R* :tangle inst/doc/05_clean_up_intermediary_tables.R :exports none :padline no :eval no
+  
+  # clean up
+  
+  dbSendQuery(ch,
+  # cat(
+  paste("drop table biosmoke_pollution.",'pm10',"_",c('av'),"_events_",gsub('Lower Hunter','Newcastle',towns),"_temp",sep='',collapse=';\n'))
+  
+  dbSendQuery(ch,
+  # cat(
+  paste("drop table biosmoke_pollution.",'pm25',"_",c('av'),"_events_",gsub('Lower Hunter','Newcastle',towns),"_temp",sep='',collapse=';\n'))
+  
+  dbSendQuery(ch,
+  # cat(
+  paste("drop table biosmoke_pollution.",'o3',"_",c('max'),"_events_",gsub('Lower Hunter','Newcastle',towns[1:4]),"_temp",sep='',collapse=';\n'))
+  
+  tbls <- pgListTables(ch, "biosmoke_pollution")
+  tbls
+  # to keep
+  4                combined_pollutants biosmoke_pollution
+  52         o3_max_events_all_regions biosmoke_pollution
+  53        pm10_av_events_all_regions biosmoke_pollution
+  54        pm25_av_events_all_regions biosmoke_pollution
+  3  pollution_stations_combined_final biosmoke_pollution
+  
+  tbls <- read.table(textConnection("rowid                        relname            nspname
+  48              imputed_o3_illawarra biosmoke_pollution
+  50              imputed_o3_newcastle biosmoke_pollution
+  44                  imputed_o3_perth biosmoke_pollution
+  46                 imputed_o3_sydney biosmoke_pollution
+  16               imputed_pm10_hobart biosmoke_pollution
+  11            imputed_pm10_illawarra biosmoke_pollution
+  18           imputed_pm10_launceston biosmoke_pollution
+  14            imputed_pm10_newcastle biosmoke_pollution
+  7                 imputed_pm10_perth biosmoke_pollution
+  9                imputed_pm10_sydney biosmoke_pollution
+  24               imputed_pm25_hobart biosmoke_pollution
+  2             imputed_pm25_illawarra biosmoke_pollution
+  26           imputed_pm25_launceston biosmoke_pollution
+  6             imputed_pm25_newcastle biosmoke_pollution
+  20                imputed_pm25_perth biosmoke_pollution
+  22               imputed_pm25_sydney biosmoke_pollution
+  49           o3_max_events_illawarra biosmoke_pollution
+  51           o3_max_events_newcastle biosmoke_pollution
+  45               o3_max_events_perth biosmoke_pollution
+  47              o3_max_events_sydney biosmoke_pollution
+  17             pm10_av_events_hobart biosmoke_pollution
+  12          pm10_av_events_illawarra biosmoke_pollution
+  19         pm10_av_events_launceston biosmoke_pollution
+  15          pm10_av_events_newcastle biosmoke_pollution
+  8               pm10_av_events_perth biosmoke_pollution
+  10             pm10_av_events_sydney biosmoke_pollution
+  25             pm25_av_events_hobart biosmoke_pollution
+  5           pm25_av_events_illawarra biosmoke_pollution
+  43         pm25_av_events_launceston biosmoke_pollution
+  23          pm25_av_events_newcastle biosmoke_pollution
+  21              pm25_av_events_perth biosmoke_pollution
+  1              pm25_av_events_sydney biosmoke_pollution
+  39          stationdates_hobart_pm10 biosmoke_pollution
+  40          stationdates_hobart_pm25 biosmoke_pollution
+  35         stationdates_illawarra_o3 biosmoke_pollution
+  33       stationdates_illawarra_pm10 biosmoke_pollution
+  34       stationdates_illawarra_pm25 biosmoke_pollution
+  13        stationdates_launceston_o3 biosmoke_pollution
+  41      stationdates_launceston_pm10 biosmoke_pollution
+  42      stationdates_launceston_pm25 biosmoke_pollution
+  38         stationdates_newcastle_o3 biosmoke_pollution
+  36       stationdates_newcastle_pm10 biosmoke_pollution
+  37       stationdates_newcastle_pm25 biosmoke_pollution
+  29             stationdates_perth_o3 biosmoke_pollution
+  27           stationdates_perth_pm10 biosmoke_pollution
+  28           stationdates_perth_pm25 biosmoke_pollution
+  32            stationdates_sydney_o3 biosmoke_pollution
+  30          stationdates_sydney_pm10 biosmoke_pollution
+  31          stationdates_sydney_pm25 biosmoke_pollution
+  "), header = T)
+  
+  head(tbls)
+  
+  for(i in 1:nrow(tbls)){
+  #i = 1
+    dbSendQuery(ch,
+  #cat(
+  paste("drop table biosmoke_pollution.",tbls$relnam[i],sep='')
+    )
+  
+  }
+  
+#+end_src
 
 **** R QC
-#+begin_src R :session *R* :tangle inst/doc/04_qc_checks.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/04_qc_checks.R :exports none :padline no :eval no
   
-  # check for duplicates
-  # SELECT region, date,count(*)
-    # FROM pollution.o3_max_events_all_regions
-    # group by region,date
-    # having count(*)>1
-  
+  # TODO there are duplicated records for some reason
+  poll <- "pm25_av" #"pm10_av" #"o3_max"
+  qc <- dbGetQuery(ch,
+  paste("SELECT region, date,count(*)
+   FROM biosmoke_pollution.",poll,"_events_all_regions
+   group by region,date
+    having count(*)>1", sep = "")
+                   )
+  head(qc)
+  regiontest <- "Sydney"
+  datetest <- "2002-04-07"
+  dbGetQuery(ch,
+  paste("select *
+   FROM biosmoke_pollution.",poll,"_events_all_regions
+   where region = '",regiontest,"' and date = '",datetest,"'
+  ", sep = "")
+  )
   # may have crept in via the station dates process?  
-   
-  dbSendQuery(ch,'grant all on table pollution.pm10_av_events_all_regions to biosmoke_group')
-   
-  dbSendQuery(ch,'grant all on table pollution.pm25_av_events_all_regions to biosmoke_group')
-   
-  dbSendQuery(ch,'grant all on table pollution.o3_max_events_all_regions to biosmoke_group')
+  
+  
   
   ############################################################# 
   # summarise  
@@ -1174,16 +1273,16 @@ source("01_prepare_dates.R")
   # print(town)   
           # dbSendQuery(ch,
           # # cat(
-          # paste("delete from pollution.",poll,"_",stat,"_events_all_regions where region = \'",town,"\'",sep="")
+          # paste("delete from biosmoke_pollution.",poll,"_",stat,"_events_all_regions where region = \'",town,"\'",sep="")
           # )
   
   d<- dbGetQuery(ch,
           # cat(
           paste("select t1.date as fulldate, t2.*
           from  
-          (select distinct date from pollution.stationdates_",town,"_",poll," where date >= ",mindate,") t1 
+          (select distinct date from biosmoke_pollution.stationdates_",town,"_",poll," where date >= ",mindate,") t1 
           left join 
-          (select * from pollution.",poll,"_",stat,"_events_all_regions where region =\'",town,"\') as t2
+          (select * from biosmoke_pollution.",poll,"_",stat,"_events_all_regions where region =\'",town,"\') as t2
           on t1.date=t2.date",sep="")
           )
           
@@ -1193,7 +1292,7 @@ source("01_prepare_dates.R")
   from
   (
   SELECT region, date, ",poll,"_",stat,", ranked, pctile
-    FROM pollution.",poll,"_",stat,"_events_all_regions
+    FROM biosmoke_pollution.",poll,"_",stat,"_events_all_regions
     where region = \'",town,"\' and pctile >= .99
     ) foo
   union all
@@ -1201,7 +1300,7 @@ source("01_prepare_dates.R")
   from
   (
   SELECT region, date, ",poll,"_",stat,", ranked, pctile
-    FROM pollution.",poll,"_",stat,"_events_all_regions
+    FROM biosmoke_pollution.",poll,"_",stat,"_events_all_regions
     where region = \'",town,"\'  and (pctile >= .97 and pctile < .99)
     ) foo
   union all
@@ -1209,7 +1308,7 @@ source("01_prepare_dates.R")
   from
   (
   SELECT region, date, ",poll,"_",stat,", ranked, pctile
-    FROM pollution.",poll,"_",stat,"_events_all_regions
+    FROM biosmoke_pollution.",poll,"_",stat,"_events_all_regions
     where region = \'",town,"\'  and (pctile >= .95 and pctile < .97)
     ) foo
   union all
@@ -1217,7 +1316,7 @@ source("01_prepare_dates.R")
   from
   (
   SELECT region, date, ",poll,"_",stat,", ranked, pctile
-    FROM pollution.",poll,"_",stat,"_events_all_regions
+    FROM biosmoke_pollution.",poll,"_",stat,"_events_all_regions
     where region = \'",town,"\' and pctile >= .95
     ) foo;",sep="")
   )
@@ -1275,36 +1374,36 @@ source("01_prepare_dates.R")
   # useful code
   # select t1.date as fulldate, t2.*
   # from  
-  # (select distinct date from pollution.stationdates_Sydney_pm10 where date >= '1994-01-10') t1 
+  # (select distinct date from biosmoke_pollution.stationdates_Sydney_pm10 where date >= '1994-01-10') t1 
   # left join 
-  # (select * from pollution.pm10_av_events_all_regions where region ='Newcastle') as t2
+  # (select * from biosmoke_pollution.pm10_av_events_all_regions where region ='Newcastle') as t2
   # on t1.date=t2.date
   
   
   # select *  
   # from  
-  # (select distinct date from pollution.stationdates_illawarra_pm25 where date = '1998-03-01') t1 
+  # (select distinct date from biosmoke_pollution.stationdates_illawarra_pm25 where date = '1998-03-01') t1 
   # left join 
   # (
-  # select pollution.combined_pollutants.* 
-  # from pollution.combined_pollutants 
+  # select biosmoke_pollution.combined_pollutants.* 
+  # from biosmoke_pollution.combined_pollutants 
   # join 
   # spatial.pollution_stations_combined_final
   # on
-  # pollution.combined_pollutants.site=spatial.pollution_stations_combined_final.site 
+  # biosmoke_pollution.combined_pollutants.site=spatial.pollution_stations_combined_final.site 
   # where region = 'Illawara'
   # ) t2
   # on t1.date=t2.date
     
     
-
+  
 #+end_src
 *** step4
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
   
   Step 4. Validate events and identify the causes. Select any events
   with PM10 or PM2.5 greater than 95 percentile. Manually validate
-  events usingonline newspaper archives, government and research agency
+  events using online newspaper archives, government and research agency
   records, satellite imagery and other sources (such as a Dust Storm
   database).  Enter the information for each event into the custom built
   data entry forms.  For any events with references for multiple types
@@ -1317,7 +1416,7 @@ source("01_prepare_dates.R")
 
 **** COMMENT func QC missing99
 #+name:func sites_todo
-#+begin_src R :session *R* :tangle R/sites_todo.R :exports none :eval yes
+#+begin_src R :session *R* :tangle R/missing99.R :exports none :padline no :eval yes
   #' @name   missing99
   #' @title   99th centile missing references of any type
   #' @param poll pollutant
@@ -1326,16 +1425,16 @@ source("01_prepare_dates.R")
   dat <- dbSendQuery(ch,
   # cat(
   paste("
-  create or replace view pollution.",poll,"_to_check
+  create or replace view biosmoke_pollution.",poll,"_to_check
   as 
   select ",poll,".*, eventid,refid, eventtype, place,mindate,maxdate, field3,field5, field7
   from
-  pollution.",poll,"_av_events_all_regions as ",poll,"
+  biosmoke_pollution.",poll,"_av_events_all_regions as ",poll,"
   left join
   (
           SELECT t1.date, t2.*
           FROM 
-                  pollution.",poll,"_",stat,"_events_all_regions t1
+                  biosmoke_pollution.",poll,"_",stat,"_events_all_regions t1
           ,
                   (
                   select tab1.*, 
@@ -1356,7 +1455,7 @@ source("01_prepare_dates.R")
   and ",poll,".region=checked.region 
   where pctile>=.99 and mindate is null 
     ORDER BY ",poll,".region, ",poll,".pctile DESC;
-  grant all on pollution.",poll,"_to_check to biosmoke_group
+  grant all on biosmoke_pollution.",poll,"_to_check to biosmoke_group
   ",sep="")
   )
   return(dat)
@@ -1366,7 +1465,7 @@ source("01_prepare_dates.R")
   
 #+end_src
 **** R QC missing99
-#+begin_src R :session *R* :tangle inst/doc/04_qc_checks.R :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/04_qc_checks.R :exports none :padline no :eval no
   # identify 99% centile days with no refs.
   missing99(poll=polls[5,3])
   missing99(poll=polls[7,3])
@@ -1381,14 +1480,14 @@ head/projects/Biomass/data/pollution/summaryValidPollution4events
 I:\Dropbox\projects\1.302 Biomass\data\pollution\summaryValidPollution4events
 
 ** availability
-#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :padline no :eval no :padline yes 
   
   ## Availability and requirements
   
   Lists the following:
   
   - Project name: BiosmokeValidatedEvents
-  - Project home page: http://ivanhanigan.github.io/BiosmokeValidatedEvents/
+  - Project home page: http://swish-climate-impact-assessment.github.io/BiosmokeValidatedEvents/
   - Operating system(s): R package is platform independent.  Data Entry forms are Microsoft Windows.
   - Programming language: R and SQL
   - Other requirements: PostgreSQL (PostGIS is desirable)
@@ -1411,7 +1510,7 @@ I:\Dropbox\projects\1.302 Biomass\data\pollution\summaryValidPollution4events
 #+end_src
 ** COMMENT bib-code
 #+name:bib
-#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :padline no :eval no
 
   **References**
 
@@ -1424,7 +1523,7 @@ I:\Dropbox\projects\1.302 Biomass\data\pollution\summaryValidPollution4events
 ** ETL metadata 
 *** COMMENT go-code
 #+name:go
-#+begin_src R :session *R* :tangle no :exports none :eval yes
+#+begin_src R :session *R* :tangle no :exports none :padline no :eval yes
   #### name:go ####
   require(rpostgrestools)
   ch <- connect2postgres2("data_inventory_hanigan_dev4")
@@ -1673,7 +1772,7 @@ I:\Dropbox\projects\1.302 Biomass\data\pollution\summaryValidPollution4events
 
 ** COMMENT conceptual-diagram-code
 #+name:conceptual-diagram
-#+begin_src R :session *R* :tangle inst/doc/conceptual-diagram.R :exports none :eval yes
+#+begin_src R :session *R* :tangle inst/doc/conceptual-diagram.R :exports none :padline no :eval yes
   #### name:conceptual-diagram ####
   setwd("~/data/BiosmokeValidatedEvents/inst/doc")
   library(disentangle)
@@ -1711,7 +1810,7 @@ media/external/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures
 ** COMMENT read  Methods back from word and insert to data inventory using sql???
 *** COMMENT methods-code
 #+name:methods
-#+begin_src R :session *R* :tangle no :exports none :eval yes
+#+begin_src R :session *R* :tangle no :exports none :padline no :eval yes
   #### name:methods ####
   if(exists('ch'))   dbDisconnect(ch)
   etl <- "load"
@@ -1795,7 +1894,7 @@ media/external/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures
 
 * COMMENT get-data-delphe-code
 #+name:get-data-delphe
-#+begin_src R :session *R* :tangle no :exports none :eval no
+#+begin_src R :session *R* :tangle no :exports none :padline no :eval no
   ################################################################
   # name:get-data-delphe
   require(swishdbtools)
@@ -2295,5 +2394,57 @@ Thus we observe that this expected value is finite for all $v>0$ (also see \cite
 
 \end{backmatter}
 \end{document}
+
+#+end_src
+** Additional File 1
+*** COMMENT AdditionalFile1-code
+#+name:AdditionalFile1
+#+begin_src R :session *shell* :tangle vignettes/BiosmokeValidatedEvents_AdditionalFile1.Rmd :exports none :eval no :padline no
+---
+title: "Biosmoke Validated Events Database Instructions for Accessing"
+author: "Ivan C. Hanigan"
+date: "10 July 2015"
+output:
+  html_document:
+    toc: true
+documentclass: article    
+---
+
+# Introduction 
+
+These instructions are for users to access the database to browse or download data.
+A password is required and available on request to the corresponding author.
+
+# MS Access
+
+- Download and install the latest version of psqlODBC from: [http://www.postgresql.org/ftp/odbc/versions/msi/](http://www.postgresql.org/ftp/odbc/versions/msi/)
+- Please note: If running a 64-bit version of Windows, you will want to download and install BOTH the psqlodbc_XX_XX_XXXX.zip and psqlodbc_XX_XX_XXXX-x64.zip file. 
+- Assuming you use the 32 bit windows office suite (recommended) then use the command below to open the ODBC connections tool and add a DSN for your postgres database
+- Go to Start -> Run (or Press Windows+R keys) and enter 
+
+```
+    %WINDIR%\SysWOW64\odbcad32.exe
+```
+
+- On either the User DSN or System DSN tab, click the Add button - find the PostgreSQL ODBC Driver.
+- Select UNICODE, and click Finish.
+- Data Source = biosmoke_events
+- Database = ewedb
+- Server = gislibrary.anu.edu.au
+
+- image
+
+- User Name and Password will be supplied to you on request.
+- Click the Save button to create the DSN.
+
+
+
+# pgAdmin for PostgreSQL management
+
+pgAdmin is recommended for advanced users
+
+![img/test.png](img/test.png)
+
+# Extending the Database using the Custom Built R Package
 
 #+end_src

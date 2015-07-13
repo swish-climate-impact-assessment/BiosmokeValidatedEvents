@@ -1,4 +1,3 @@
-
 #' @name impute
 #' @title impute for each site
 #' @param sitelist sites
@@ -45,7 +44,7 @@ paste("CREATE TABLE biosmoke_pollution.imputed_",poll,"_",town,"
 
 
 for(loc in sitelist[1:length(sitelist)]){
-#loc=sitelist[1]
+# loc=sitelist[2]
 print(loc)
 
 # a) calculate a daily network average of all non-missing sites 
@@ -101,26 +100,26 @@ txt <- paste("select t1.date, avg(t2.param) as missingavg3mo
 into biosmoke_pollution.missingavg3mo
 from 
 (
-SELECT biosmoke_pollution.stationdates_",town,"_",poll,".station as site, biosmoke_pollution.stationdates_",town,"_",poll,".date, ",poll,"_",stat," as param
+SELECT biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station as site, biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date, ",poll,"_",stat," as param
 FROM
-biosmoke_pollution.stationdates_",town,"_",poll,"
+biosmoke_pollution.stationdates_",tolower(town),"_",poll,"
 left join
 biosmoke_pollution.combined_pollutants
-on biosmoke_pollution.stationdates_",town,"_",poll,".station=biosmoke_pollution.combined_pollutants.site
-and biosmoke_pollution.stationdates_",town,"_",poll,".date=biosmoke_pollution.combined_pollutants.date
-where biosmoke_pollution.stationdates_",town,"_",poll,".station = '",sitelist[grep(loc,sitelist)],"'
-                        and biosmoke_pollution.stationdates_",town,"_",poll,".date >= ",mindate," and biosmoke_pollution.stationdates_",town,"_",poll,".date <= '",maxdate,"'
-) t1
+on biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station=biosmoke_pollution.combined_pollutants.site
+and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date=biosmoke_pollution.combined_pollutants.date
+where biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station = '",sitelist[grep(loc,sitelist)],"'
+                        and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date >= ",mindate," and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date <= '",maxdate,"'
+) t1,
 (
-SELECT biosmoke_pollution.stationdates_",town,"_",poll,".station as site, biosmoke_pollution.stationdates_",town,"_",poll,".date, ",poll,"_",stat," as param
+SELECT biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station as site, biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date, ",poll,"_",stat," as param
 FROM
-biosmoke_pollution.stationdates_",town,"_",poll,"
+biosmoke_pollution.stationdates_",tolower(town),"_",poll,"
 left join
 biosmoke_pollution.combined_pollutants
-on biosmoke_pollution.stationdates_",town,"_",poll,".station=biosmoke_pollution.combined_pollutants.site
-and biosmoke_pollution.stationdates_",town,"_",poll,".date=biosmoke_pollution.combined_pollutants.date
-where biosmoke_pollution.stationdates_",town,"_",poll,".station = '",sitelist[grep(loc,sitelist)],"'
-                        and biosmoke_pollution.stationdates_",town,"_",poll,".date >= ",mindate," and biosmoke_pollution.stationdates_",town,"_",poll,".date <= '",maxdate,"'
+on biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station=biosmoke_pollution.combined_pollutants.site
+and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date=biosmoke_pollution.combined_pollutants.date
+where biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station = '",sitelist[grep(loc,sitelist)],"'
+                        and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date >= ",mindate," and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date <= '",maxdate,"'
 ) t2
 where (t2.date >= (t1.date -45) and t2.date <= (t1.date+44))
 group by t1.date 
@@ -133,7 +132,7 @@ endd=Sys.time()
 print(endd-strt)
 
 # d) estimate missing days at missing sites and insert to output table
-txt <- paste("INSERT INTO  biosmoke_pollution.imputed_",poll,"_",town,"  (
+txt <- paste("INSERT INTO  biosmoke_pollution.imputed_",poll,"_",tolower(town),"  (
             site, rawdate, rawdata, date, networkavg, missingavg3mo, networkavg3mo, 
             imputed, imputed_param
                                                 )
@@ -141,17 +140,17 @@ select raw.site, raw.date as rawdate, param as rawdata, imputed.date, networkavg
             imputed, case when param is null then imputed else param end as imputed_param 
 from
 (
-SELECT biosmoke_pollution.stationdates_",town,"_",poll,".station as site, biosmoke_pollution.stationdates_",town,"_",poll,".date, ",poll,"_",stat," as param
+SELECT biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station as site, biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date, ",poll,"_",stat," as param
                 FROM
-                biosmoke_pollution.stationdates_",town,"_",poll,"
+                biosmoke_pollution.stationdates_",tolower(town),"_",poll,"
                 left join
                 biosmoke_pollution.combined_pollutants
-                on biosmoke_pollution.stationdates_",town,"_",poll,".station=biosmoke_pollution.combined_pollutants.site
-                and biosmoke_pollution.stationdates_",town,"_",poll,".date=biosmoke_pollution.combined_pollutants.date
-                                where biosmoke_pollution.stationdates_",town,"_",poll,".date >= ",mindate,"
-                                        and biosmoke_pollution.stationdates_",town,"_",poll,".date <= '",maxdate,"'
-                                        and biosmoke_pollution.stationdates_",town,"_",poll,".station = '",loc,"'
-order by biosmoke_pollution.stationdates_",town,"_",poll,".date
+                on biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station=biosmoke_pollution.combined_pollutants.site
+                and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date=biosmoke_pollution.combined_pollutants.date
+                                where biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date >= ",mindate,"
+                                        and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date <= '",maxdate,"'
+                                        and biosmoke_pollution.stationdates_",tolower(town),"_",poll,".station = '",loc,"'
+order by biosmoke_pollution.stationdates_",tolower(town),"_",poll,".date
 ) raw
 left join
 (

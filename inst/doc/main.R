@@ -1,14 +1,11 @@
-
 #################################################################
 projectdir <- "~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents"
 setwd(projectdir)
 library(rpostgrestools)
 # you will need to request username and password
 ch <- connect2postgres2("ewedb_staging")
-
 #################################################################
 towns <- c("PERTH", "Sydney","Illawarra","Lower Hunter","Hobart","Launceston")
-
 #################################################################
 
 # list pollutants
@@ -24,10 +21,26 @@ polls
 poll_i <- 4
 (poll <- polls[poll_i,3])
 (pollutant <- polls[poll_i,2])
-
 #### Do the processing
 source("01_prepare_dates.R")
+#### Set up a list of things to do in order ####
+todo=cbind(towns,rep('pm10',length(towns)),c("'1997-05-23'","'1994-01-01'","'1994-02-15'",
+"'1994-02-02'","'2006-04-22'" ,"'2001-05-01'"))
 
+todo=rbind(todo,cbind(towns,rep('pm25',length(towns)),c("'1994-02-15'","'1996-05-07'","'1998-03-01'" ,"'1996-06-19'","'2006-06-05'" ,"'2005-06-04'")))
+
+todo=rbind(todo,cbind(towns[1:4],rep('o3',4),rep("'1994-01-01'",4)))
+
+todo=as.data.frame(todo)
+todo
+todo$stat=ifelse(todo[,2]=='o3','max','av')
+todo
+
+i=1
+town=todo[i,1]
+poll=todo[i,2]
+mindate=todo[i,3]
+stat=todo[i,4]
 source("02_loop_over_stations_calculate_net_avg.R")
 source("03_calc_extreme_events.R")
 # Now Manually validate events

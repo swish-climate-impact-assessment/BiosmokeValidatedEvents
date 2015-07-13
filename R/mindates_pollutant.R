@@ -1,4 +1,3 @@
-
 #' @name mindates_pollutant
 #' @title Minimum Date a Pollutant is observed from 
 #' @param town the Biomass Study Town in question

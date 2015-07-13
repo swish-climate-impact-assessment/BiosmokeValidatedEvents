@@ -1,17 +1,23 @@
-
-# check for duplicates
-# SELECT region, date,count(*)
-  # FROM pollution.o3_max_events_all_regions
-  # group by region,date
-  # having count(*)>1
-
+# TODO there are duplicated records for some reason
+poll <- "pm25_av" #"pm10_av" #"o3_max"
+qc <- dbGetQuery(ch,
+paste("SELECT region, date,count(*)
+ FROM biosmoke_pollution.",poll,"_events_all_regions
+ group by region,date
+  having count(*)>1", sep = "")
+                 )
+head(qc)
+regiontest <- "Sydney"
+datetest <- "2002-04-07"
+dbGetQuery(ch,
+paste("select *
+ FROM biosmoke_pollution.",poll,"_events_all_regions
+ where region = '",regiontest,"' and date = '",datetest,"'
+", sep = "")
+)
 # may have crept in via the station dates process?  
- 
-dbSendQuery(ch,'grant all on table pollution.pm10_av_events_all_regions to biosmoke_group')
- 
-dbSendQuery(ch,'grant all on table pollution.pm25_av_events_all_regions to biosmoke_group')
- 
-dbSendQuery(ch,'grant all on table pollution.o3_max_events_all_regions to biosmoke_group')
+
+
 
 ############################################################# 
 # summarise  
@@ -48,16 +54,16 @@ print(stat)
 # print(town)   
         # dbSendQuery(ch,
         # # cat(
-        # paste("delete from pollution.",poll,"_",stat,"_events_all_regions where region = \'",town,"\'",sep="")
+        # paste("delete from biosmoke_pollution.",poll,"_",stat,"_events_all_regions where region = \'",town,"\'",sep="")
         # )
 
 d<- dbGetQuery(ch,
         # cat(
         paste("select t1.date as fulldate, t2.*
         from  
-        (select distinct date from pollution.stationdates_",town,"_",poll," where date >= ",mindate,") t1 
+        (select distinct date from biosmoke_pollution.stationdates_",town,"_",poll," where date >= ",mindate,") t1 
         left join 
-        (select * from pollution.",poll,"_",stat,"_events_all_regions where region =\'",town,"\') as t2
+        (select * from biosmoke_pollution.",poll,"_",stat,"_events_all_regions where region =\'",town,"\') as t2
         on t1.date=t2.date",sep="")
         )
         
@@ -67,7 +73,7 @@ paste("select \'99\', count(*)
 from
 (
 SELECT region, date, ",poll,"_",stat,", ranked, pctile
-  FROM pollution.",poll,"_",stat,"_events_all_regions
+  FROM biosmoke_pollution.",poll,"_",stat,"_events_all_regions
   where region = \'",town,"\' and pctile >= .99
   ) foo
 union all
@@ -75,7 +81,7 @@ select \'97-98\', count(*)
 from
 (
 SELECT region, date, ",poll,"_",stat,", ranked, pctile
-  FROM pollution.",poll,"_",stat,"_events_all_regions
+  FROM biosmoke_pollution.",poll,"_",stat,"_events_all_regions
   where region = \'",town,"\'  and (pctile >= .97 and pctile < .99)
   ) foo
 union all
@@ -83,7 +89,7 @@ select \'95-96\', count(*)
 from
 (
 SELECT region, date, ",poll,"_",stat,", ranked, pctile
-  FROM pollution.",poll,"_",stat,"_events_all_regions
+  FROM biosmoke_pollution.",poll,"_",stat,"_events_all_regions
   where region = \'",town,"\'  and (pctile >= .95 and pctile < .97)
   ) foo
 union all
@@ -91,7 +97,7 @@ select \'95+\', count(*)
 from
 (
 SELECT region, date, ",poll,"_",stat,", ranked, pctile
-  FROM pollution.",poll,"_",stat,"_events_all_regions
+  FROM biosmoke_pollution.",poll,"_",stat,"_events_all_regions
   where region = \'",town,"\' and pctile >= .95
   ) foo;",sep="")
 )
@@ -149,27 +155,26 @@ write.csv(descstats,'descstats.csv',row.names=F)
 # useful code
 # select t1.date as fulldate, t2.*
 # from  
-# (select distinct date from pollution.stationdates_Sydney_pm10 where date >= '1994-01-10') t1 
+# (select distinct date from biosmoke_pollution.stationdates_Sydney_pm10 where date >= '1994-01-10') t1 
 # left join 
-# (select * from pollution.pm10_av_events_all_regions where region ='Newcastle') as t2
+# (select * from biosmoke_pollution.pm10_av_events_all_regions where region ='Newcastle') as t2
 # on t1.date=t2.date
 
 
 # select *  
 # from  
-# (select distinct date from pollution.stationdates_illawarra_pm25 where date = '1998-03-01') t1 
+# (select distinct date from biosmoke_pollution.stationdates_illawarra_pm25 where date = '1998-03-01') t1 
 # left join 
 # (
-# select pollution.combined_pollutants.* 
-# from pollution.combined_pollutants 
+# select biosmoke_pollution.combined_pollutants.* 
+# from biosmoke_pollution.combined_pollutants 
 # join 
 # spatial.pollution_stations_combined_final
 # on
-# pollution.combined_pollutants.site=spatial.pollution_stations_combined_final.site 
+# biosmoke_pollution.combined_pollutants.site=spatial.pollution_stations_combined_final.site 
 # where region = 'Illawara'
 # ) t2
 # on t1.date=t2.date
-
 # identify 99% centile days with no refs.
 missing99(poll=polls[5,3])
 missing99(poll=polls[7,3])

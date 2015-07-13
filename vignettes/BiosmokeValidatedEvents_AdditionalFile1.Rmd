@@ -28,7 +28,7 @@ A password is required and available on request to the corresponding author.
 - Select UNICODE, and click Finish.
 - Data Source = biosmoke_events
 - Database = ewedb
-- Server = brawn.anu.edu.au
+- Server = gislibrary.anu.edu.au
 
 - image
 
@@ -42,3 +42,5 @@ A password is required and available on request to the corresponding author.
 pgAdmin is recommended for advanced users
 
 ![img/test.png](img/test.png)
+
+# Extending the Database using the Custom Built R Package

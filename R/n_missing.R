@@ -1,4 +1,3 @@
-
 #' @name n_missing
 #' @title number missing
 #' @param town the one to do
@@ -18,14 +17,13 @@ select
 from
         (
         select rawdate , avg(imputed_param) as ",poll,"
-        from pollution.imputed_",poll,"_",town,"
+        from biosmoke_pollution.imputed_",poll,"_",town,"
         group by rawdate
         having avg(imputed_param) is null
-        ) t1
-
+        ) t1,
         (
         select rawdate , avg(imputed_param) as ",poll,"
-        from pollution.imputed_",poll,"_",town,"
+        from biosmoke_pollution.imputed_",poll,"_",town,"
         group by rawdate
         ) t2
 where (t2.rawdate >= t1.rawdate-1 and  t2.rawdate <= t1.rawdate+1)
@@ -37,10 +35,11 @@ order by t1.rawdate
 )
 
 noverall<- dbGetQuery(ch,
+#cat(
 paste("select count(*) from
 (
 select rawdate , avg(imputed_param) as ",poll,"
-from pollution.imputed_",poll,"_",town,"
+from biosmoke_pollution.imputed_",poll,"_",town,"
 group by rawdate
 ) bar",sep="")
 )
