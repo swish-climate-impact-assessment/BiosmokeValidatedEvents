@@ -626,7 +626,7 @@ source("01_prepare_dates.R")
 #+end_src
 **** COMMENT func impute
 #+name:func sites_todo
-#+begin_src R :session *R* :tangle R/sites_todo.R :exports none :eval yes
+#+begin_src R :session *R* :tangle R/impute.R :exports none :eval yes
   #' @name impute
   #' @title impute for each site
   #' @param sitelist sites
@@ -825,7 +825,7 @@ source("01_prepare_dates.R")
 #+end_src
 **** COMMENT func n_missing
 #+name:func sites_todo
-#+begin_src R :session *R* :tangle R/sites_todo.R :exports none :eval yes
+#+begin_src R :session *R* :tangle R/n_missing.R :exports none :eval yes
   #' @name n_missing
   #' @title number missing
   #' @param town the one to do
@@ -891,7 +891,7 @@ source("01_prepare_dates.R")
 #+end_src
 **** COMMENT func citywide_av
 #+name:func sites_todo
-#+begin_src R :session *R* :tangle R/sites_todo.R :exports none :eval yes
+#+begin_src R :session *R* :tangle R/citywide_av.R :exports none :eval yes
   #' @name citywide_av
   #' @title city wide average
   #' @param town
@@ -1046,7 +1046,7 @@ source("01_prepare_dates.R")
 #+end_src
 **** COMMENT func stitch_together
 #+name:func sites_todo
-#+begin_src R :session *R* :tangle R/sites_todo.R :exports none :eval yes
+#+begin_src R :session *R* :tangle R/stitch_togethor.R :exports none :eval yes
   #' @name stitch_together
   #' @title put all the bits together
   #' @param poll pollutant
@@ -1924,7 +1924,7 @@ run with R studio
 %%                                          %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\title{An Open and Extensible Database of Validated Extreme Air Pollution Events for Health Research}
+\title{An Online Extensible Database of Validated Extreme Air Pollution Events for Health Research}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%                                          %%
