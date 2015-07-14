@@ -44,11 +44,18 @@
   library(bibtex)
   
   cleanbib()
-  cite_options(citation_format = "pandoc", check.entries=FALSE) 
-  rmarkdown::render("inst/doc/methods.Rmd", "pdf_document")
+  cite_options(citation_format = "pandoc", check.entries=FALSE)
+  # to make editable
+  rmarkdown::render("inst/doc/methods.Rmd", "word_document")
+  
+  # to make beautiful 
+  #rmarkdown::render("inst/doc/methods.Rmd", "pdf_document")
   # if tex get out of doc because it breaks the R build
   #file.rename("inst/doc/methods.tex", "vignettes/methods.tex")
+  # edit to remove latex header etc and urls
   #file.remove("inst/doc/methods.pdf")
+  dir("vignettes")
+  rmarkdown::render("vignettes/BiosmokeValidatedEvents_AdditionalFile1.Rmd", "html_document")
   
 #+end_src
 
@@ -2248,7 +2255,7 @@ run with R studio
 \begin{frontmatter}
 
 \begin{fmbox}
-\dochead{Data Note}
+\dochead{Data Note (Draft 2015-07-14)}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%                                          %%
@@ -2636,7 +2643,6 @@ Thus we observe that this expected value is finite for all $v>0$ (also see \cite
 ---
 title: "Biosmoke Validated Events Database Instructions for Accessing"
 author: "Ivan C. Hanigan"
-date: "10 July 2015"
 output:
   html_document:
     toc: true

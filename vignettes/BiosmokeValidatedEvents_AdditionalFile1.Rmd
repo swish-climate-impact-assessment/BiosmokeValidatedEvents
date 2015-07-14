@@ -1,7 +1,6 @@
 ---
 title: "Biosmoke Validated Events Database Instructions for Accessing"
 author: "Ivan C. Hanigan"
-date: "10 July 2015"
 output:
   html_document:
     toc: true
