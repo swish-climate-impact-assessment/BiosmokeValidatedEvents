@@ -2144,7 +2144,9 @@ media/external/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures
 #+name:load-data-ewedb
 #+begin_src R :session *R* :tangle no :exports none :eval no
 # make sure remove server has schema and users as appropriate
-pg_dump -h localhost -p 5432 -U postgres -i -s \"biosmoke_events\" ewedb_staging | psql -h gislibrary -U postgres ewedb
+pg_dump -h localhost -p 5432 -U postgres -i -n \"biosmoke_spatial\" ewedb_staging | psql -h gislibrary -U postgres ewedb
+pg_dump -h localhost -p 5432 -U postgres -i -n \"biosmoke_pollution\" ewedb_staging | psql -h gislibrary -U postgres ewedb
+pg_dump -h localhost -p 5432 -U postgres -i -n \"biosmoke_events\" ewedb_staging | psql -h gislibrary -U postgres ewedb
 
 
 #+end_src
