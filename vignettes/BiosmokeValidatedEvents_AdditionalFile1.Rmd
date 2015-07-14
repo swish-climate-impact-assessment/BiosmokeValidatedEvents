@@ -29,20 +29,55 @@ A password is required and available on request to the corresponding author.
 - Database = ewedb
 - Server = gislibrary.anu.edu.au
 
-- image
+![img/mdbconnect.PNG](img/mdbconnect.PNG)
 
 - User Name and Password will be supplied to you on request.
 - Click the Save button to create the DSN.
 
+## Adding reference material
 
+- If a user has a known date to enter then they can make an additional request to be given the permission to edit the database.  These edits will be made to a staging area before validated events will be accepted by the database administrator and the master database is updated.
+- To make an addition the database is connected using an authenticated user with permission to write to the database then the Forms are used to first add a reference id (each report or satellite image has a unique ID)
+
+![img/msaccess2.png](img/msaccess2.png)
+
+- Then the dates and places that this reference validates are entered in the subform
+
+![img/msaccess2.png](img/msaccess3.png)
 
 # pgAdmin for PostgreSQL management
 
-pgAdmin is recommended for advanced users
+- pgAdmin is recommended for advanced users
+- Download and Install pgAdmin
+- TODO fix the error link to brawn.anu to gislibrary.anu
 
-![img/test.png](img/test.png)
+![img/pgadminconnect.PNG](img/pgadminconnect.PNG)
+
+![img/pgadminconnected.PNG](img/pgadminconnected.PNG)
+
+# QGIS for Spatial Data Visualisation
+
+- Download and install QGIS
+- Click on the icon of the elephant
+
+![img/qgis1.PNG](img/qgis1.PNG)
+
+![img/qgis2.PNG](img/qgis2.PNG)
+
+![img/qgis3.PNG](img/qgis3.PNG)
 
 # Extending the Database using the Custom Built R Package
 
-- Download the rpostgrestools utility package [http://swish-climate-impact-assessment.github.io/rpostgrestools/](http://swish-climate-impact-assessment.github.io/rpostgrestools/)
-- install using R
+- The underlying pollution data from which extreme events are selected is created using a sequence of computational steps that create network averages of imputed daily pollution observations.
+- The codes are all provided in an open source R package that interfaces with the database to create the pollution dataset.
+- first download and install into your R library the rpostgrestools utility package [http://swish-climate-impact-assessment.github.io/rpostgrestools/](http://swish-climate-impact-assessment.github.com/rpostgrestools/)
+- then Download and install the BiosmokeValidatedEvents R package [http://swish-climate-impact-assessment.github.io/BiosmokeValidatedEvents/](http://swish-climate-impact-assessment.github.com/BiosmokeValidatedEvents/)
+- At the R console type
+
+```{r, eval = F}
+system.file("package = "BiosmokeValidatedEvents")
+``` 
+
+- This will return the location where the R package has been installed.  
+- The scripts are in the `doc` directory, and the programs can be called from the `main.R` script found there.
+- This assumes that there is an available PostGIS server called 'ewedb_staging' and that there is a table in that database called `biosmoke_pollution.combined_pollutants` that holds the new pollution data, along with spatial files `biosmoke_pollution.pollution_stations_combined_final` and `biosmoke_spatial.study_slas_01` that show the pollution monitoring stations and the Statistical Local Areas (SLA) that define the human populations of each study region.
