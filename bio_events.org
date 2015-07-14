@@ -2029,7 +2029,7 @@ media/external/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures
     OWNER TO postgres;
   GRANT ALL ON TABLE biosmoke_events.tblreferences TO ivan_hanigan;
   GRANT select ON TABLE biosmoke_events.tblreferences TO biosmoke_user;
-  
+  GRANT ALL ON sequence biosmoke_events.tblreferences_refid_seq TO ivan_hanigan;
   
   CREATE TABLE biosmoke_events.tblevents
   (
@@ -2055,6 +2055,8 @@ media/external/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures
     OWNER TO postgres;
   GRANT ALL ON TABLE biosmoke_events.tblevents TO ivan_hanigan;
   GRANT select ON TABLE biosmoke_events.tblevents TO biosmoke_user;
+  GRANT ALL ON sequence biosmoke_events.tblevents_eventid_seq TO ivan_hanigan;
+  
   "
   #            )
   
