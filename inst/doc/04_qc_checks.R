@@ -1,5 +1,6 @@
-# TODO there are duplicated records for some reason
-poll <- "pm25_av" #"pm10_av" #"o3_max"
+# TODO during tests I found there might be duplicated records for some
+# reason so check and rectify if so
+poll <- "o3_max" #"pm10_av" # "pm25_av" # #
 qc <- dbGetQuery(ch,
 paste("SELECT region, date,count(*)
  FROM biosmoke_pollution.",poll,"_events_all_regions
@@ -26,7 +27,7 @@ paste("select *
 
 descstats=data.frame(matrix(nrow=0,ncol=15))
 descstats
-for(i in 1:nrow(todo)){
+for(i in 2:nrow(todo)){
 # i=1
 town=todo[i,1]
 if(town=="Lower Hunter"){
@@ -130,7 +131,7 @@ data.frame(t(c(as.character(town),
 
 names(descstats)=c('town','poll','numDays','mindate','maxdate','99','97','95','N99','N97_98','N95_96','N95',names(summary(d[,4])))
 descstats
-write.csv(descstats,'descstats.csv',row.names=F)
+#write.csv(descstats,'descstats.csv',row.names=F)
 
 
 

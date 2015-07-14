@@ -18,7 +18,7 @@ A password is required and available on request to the corresponding author.
 - Download and install the latest version of psqlODBC from: [http://www.postgresql.org/ftp/odbc/versions/msi/](http://www.postgresql.org/ftp/odbc/versions/msi/)
 - Please note: If running a 64-bit version of Windows, you will want to download and install BOTH the psqlodbc_XX_XX_XXXX.zip and psqlodbc_XX_XX_XXXX-x64.zip file. 
 - Assuming you use the 32 bit windows office suite (recommended) then use the command below to open the ODBC connections tool and add a DSN for your postgres database
-- Go to Start -> Run (or Press Windows+R keys) and enter 
+- Go to Start -> Run (or Press Windows+R keys) and enter  the following (using 32 drivers even if you are on a 64 machine):
 
 ```
     %WINDIR%\SysWOW64\odbcad32.exe
@@ -44,3 +44,6 @@ pgAdmin is recommended for advanced users
 ![img/test.png](img/test.png)
 
 # Extending the Database using the Custom Built R Package
+
+- Download the rpostgrestools utility package [http://swish-climate-impact-assessment.github.io/rpostgrestools/](http://swish-climate-impact-assessment.github.io/rpostgrestools/)
+- install using R

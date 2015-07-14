@@ -45,3 +45,4 @@ source("02_loop_over_stations_calculate_net_avg.R")
 source("03_calc_extreme_events.R")
 # Now Manually validate events
 source("04_qc_checks.R")
+source("05_clean_up_intermediary_tables.R")

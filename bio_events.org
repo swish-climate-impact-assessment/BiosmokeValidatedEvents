@@ -1121,7 +1121,7 @@ source("01_prepare_dates.R")
   source("03_calc_extreme_events.R")
   # Now Manually validate events
   source("04_qc_checks.R")
-  
+  source("05_clean_up_intermediary_tables.R")
 #+end_src
 **** R clean up intermediary tables
 #+begin_src R :session *R* :tangle inst/doc/05_clean_up_intermediary_tables.R :exports none :padline no :eval no
@@ -1143,12 +1143,13 @@ source("01_prepare_dates.R")
   tbls <- pgListTables(ch, "biosmoke_pollution")
   tbls
   # to keep
+  "
   4                combined_pollutants biosmoke_pollution
   52         o3_max_events_all_regions biosmoke_pollution
   53        pm10_av_events_all_regions biosmoke_pollution
   54        pm25_av_events_all_regions biosmoke_pollution
   3  pollution_stations_combined_final biosmoke_pollution
-  
+  "
   tbls <- read.table(textConnection("rowid                        relname            nspname
   48              imputed_o3_illawarra biosmoke_pollution
   50              imputed_o3_newcastle biosmoke_pollution
@@ -1187,7 +1188,6 @@ source("01_prepare_dates.R")
   35         stationdates_illawarra_o3 biosmoke_pollution
   33       stationdates_illawarra_pm10 biosmoke_pollution
   34       stationdates_illawarra_pm25 biosmoke_pollution
-  13        stationdates_launceston_o3 biosmoke_pollution
   41      stationdates_launceston_pm10 biosmoke_pollution
   42      stationdates_launceston_pm25 biosmoke_pollution
   38         stationdates_newcastle_o3 biosmoke_pollution
@@ -1217,8 +1217,9 @@ source("01_prepare_dates.R")
 **** R QC
 #+begin_src R :session *R* :tangle inst/doc/04_qc_checks.R :exports none :padline no :eval no
   
-  # TODO there are duplicated records for some reason
-  poll <- "pm25_av" #"pm10_av" #"o3_max"
+  # TODO during tests I found there might be duplicated records for some
+  # reason so check and rectify if so
+  poll <- "o3_max" #"pm10_av" # "pm25_av" # #
   qc <- dbGetQuery(ch,
   paste("SELECT region, date,count(*)
    FROM biosmoke_pollution.",poll,"_events_all_regions
@@ -1245,7 +1246,7 @@ source("01_prepare_dates.R")
   
   descstats=data.frame(matrix(nrow=0,ncol=15))
   descstats
-  for(i in 1:nrow(todo)){
+  for(i in 2:nrow(todo)){
   # i=1
   town=todo[i,1]
   if(town=="Lower Hunter"){
@@ -1349,7 +1350,7 @@ source("01_prepare_dates.R")
   
   names(descstats)=c('town','poll','numDays','mindate','maxdate','99','97','95','N99','N97_98','N95_96','N95',names(summary(d[,4])))
   descstats
-  write.csv(descstats,'descstats.csv',row.names=F)
+  #write.csv(descstats,'descstats.csv',row.names=F)
   
   
   
@@ -1413,6 +1414,51 @@ source("01_prepare_dates.R")
   
 #+end_src
 **** TODO 03_calc_extreme_events.R
+*** COMMENT 03_calc_extreme_events.R-code
+#+name:03_calc_extreme_events.R
+#+begin_src R :session *R* :tangle inst/doc/03_calc_extreme_events.R :exports none :eval no
+  #### name:03_calc_extreme_events.R ####
+  # now make a view for each poll so Talia and Grant can see.
+  
+  for(poll in c("pm10_av", "pm25_av", "o3_max")){
+  cat(
+  paste("
+  create or replace view biosmoke_pollution.",poll,"_to_check
+  as 
+  select ",poll,".*, eventid,refid, eventtype, place,mindate,maxdate, field3,field5, field7
+  from
+  biosmoke_pollution.",poll,"_events_all_regions as ",poll,"
+  left join
+  (
+          SELECT t1.date, t2.*
+          FROM 
+                  biosmoke_pollution.",poll,"_events_all_regions t1
+          ,
+                  (
+                  select tab1.*, 
+                  case when place like 'Sydney%' then 'Sydney' else place end as region,
+                  field3,field5, field7 from
+                  biosmoke_events.tblevents tab1
+                  join biosmoke_events.tblreferences tab2
+                  on tab1.refid=tab2.refid
+                  ) t2
+          where t1.region=t2.region and 
+                  (
+                  t1.date=t2.mindate 
+                  or
+                  (t1.date >= t2.mindate and t1.date <= t2.maxdate)
+                  )
+  ) checked
+  on ",poll,".date=checked.date
+  and ",poll,".region=checked.region 
+  where pctile>=.99 and mindate is null 
+    ORDER BY ",poll,".region, ",poll,".pctile DESC;
+  grant select on biosmoke_pollution.",poll,"_to_check to biosmoke_user
+  ",sep="")
+  )
+  
+  }
+#+end_src
 
 **** COMMENT func QC missing99
 #+name:func sites_todo
@@ -1893,12 +1939,12 @@ media/external/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures
 #+RESULTS: methods
 
 * COMMENT get-data-delphe-code
-#+name:get-data-delphe
+** get-data-delphe
 #+begin_src R :session *R* :tangle no :exports none :padline no :eval no
   ################################################################
   # name:get-data-delphe
-  require(swishdbtools)
-
+  require(rpostgrestools)
+  setwd("~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents/inst/extdata")
   ch <- connect2postgres2("delphe")
   
   tbls <- c("bio_events.tblreferences",
@@ -1914,6 +1960,146 @@ media/external/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures
       #str(df)
       write.csv(df, paste(tb, ".csv", sep = ""), row.names = FALSE, na = "")
     }
+  
+#+end_src
+** COMMENT load-data-ewedb-code
+#+name:load-data-ewedb
+#+begin_src R :session *R* :tangle no :exports none :eval no
+  #### name:load-data-ewedb ####
+  require(rpostgrestools)
+  setwd("~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents/inst/extdata")
+  dir()
+  ch <- connect2postgres2("ewedb_staging")
+  
+  #### set up, actually did on pgadmin as postgres
+  #dbSendQuery(ch,
+  "
+  
+  CREATE TABLE biosmoke_events.tblreferences
+  (
+    refid serial NOT NULL,
+    field1 text,
+    field2 text,
+    field3 text,
+    field4 integer NOT NULL,
+    field5 text,
+    field6 text,
+    field7 text NOT NULL,
+    field8 text,
+    field9 text,
+    field10 integer,
+    field11 text,
+    field12 text,
+    field13 text,
+    field14 text,
+    field15 text,
+    field16 text,
+    field17 text,
+    field18 text,
+    field19 text,
+    field20 text,
+    field21 text,
+    field22 text,
+    field23 text,
+    field24 text,
+    field25 text,
+    field26 text,
+    field27 text,
+    field28 text,
+    field29 text,
+    field30 text,
+    field31 text,
+    field32 text,
+    field33 text,
+    field34 text,
+    field35 text,
+    field36 text,
+    field37 text,
+    field38 text,
+    field39 text,
+    field40 text,
+    field41 text,
+    CONSTRAINT biosmoke_events_tblreferences_pkey PRIMARY KEY (refid),
+    CONSTRAINT biosmoke_events_credential_check CHECK (field28 = 'toms'::text OR field28 = 'government'::text OR field28 = 'journal'::text OR field28 = 'media'::text OR field28 = 'modis smoke'::text OR field28 = 'modis hotspot'::text OR field28 = 'internet'::text)
+  )
+  WITH (
+    OIDS=FALSE
+  );
+  ALTER TABLE biosmoke_events.tblreferences
+    OWNER TO postgres;
+  GRANT ALL ON TABLE biosmoke_events.tblreferences TO ivan_hanigan;
+  GRANT select ON TABLE biosmoke_events.tblreferences TO biosmoke_user;
+  
+  
+  CREATE TABLE biosmoke_events.tblevents
+  (
+    eventid serial NOT NULL ,
+    refid integer,
+    eventid2 integer,
+    eventtype character varying(255),
+    place character varying(255) NOT NULL,
+    mindate date NOT NULL,
+    maxdate date,
+    burnareaha character varying(255),
+    metconditions character varying(255),
+    CONSTRAINT biosmoke_events_tblevents_pkey PRIMARY KEY (eventid),
+    CONSTRAINT biosmoke_events_tblref_cscd FOREIGN KEY (refid)
+        REFERENCES biosmoke_events.tblreferences (refid) MATCH SIMPLE
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT biosmoke_events_eventtype_check CHECK (eventtype::text = 'bushfire'::text OR eventtype::text = 'dust'::text OR eventtype::text = 'salt'::text OR eventtype::text = 'possible biomass'::text OR eventtype::text = 'prescribed burn'::text OR eventtype::text = 'woodsmoke'::text OR eventtype::text = 'non-biomass, fire'::text OR eventtype::text = 'non-biomass, non-fire'::text)
+  )
+  WITH (
+    OIDS=FALSE
+  );
+  ALTER TABLE biosmoke_events.tblevents
+    OWNER TO postgres;
+  GRANT ALL ON TABLE biosmoke_events.tblevents TO ivan_hanigan;
+  GRANT select ON TABLE biosmoke_events.tblevents TO biosmoke_user;
+  "
+  #            )
+  
+  
+  
+  
+  #### load
+  tbls <- c("bio_events.tblreferences",
+  "bio_events.tblevents",
+  "bio_events.dust_event_records",
+  "bio_events.dust_event_records2")
+  dir()
+  #for(tb in tbls)
+  #  {
+  tb  <- tbls[2]
+  print(tb)
+   
+  tbin <-    read.csv(paste(tb, ".csv", sep = ""), stringsAsFactor = FALSE)
+      str(tbin)
+  tbout <- gsub("bio_events.", "", tb)
+  tbouttmp <- gsub("bio_events.", "temp", tb)
+      tbouttmp
+      dbWriteTable(ch, tbouttmp, tbin, row.names = F)
+  
+  
+  #    dbSendQuery(ch, sprintf("insert into biosmoke_events.%s ()",
+  #    tbout, tbouttmp))
+  # done manually in pgadmin!
+  
+  dbRemoveTable(ch, tbouttmp)
+  '
+  # NB some break constraint of not null field28
+  169;"IT Cental University of Tasmania";"";"http://home.iprimus.com.au/foo7/firesnsw.html"
+  166;"IT Cental University of Tasmania";"";"http://home.iprimus.com.au/foo7/firesnsw.html"
+  167;"IT Cental University of Tasmania";"";"http://home.iprimus.com.au/foo7/firesnsw.html"
+  168;"IT Cental University of Tasmania";"";"http://home.iprimus.com.au/foo7/firesnsw.html"
+  165;"IT Cental University of Tasmania";"";"http://home.iprimus.com.au/foo7/firesnsw.html"
+  642;"bljkhg";"";""
+  179;"aap australia general news";"";"http://www.highbeam.com/doc/1P1-104619075.html"
+  180;"aap australian general news";"";"http://www.highbeam.com/doc/1P1-104619075.html"
+  786;"EMA Disasters Database";"";"http://www.ema.gov.au/ema/emadisasters.nsf/54273a46a9c753b3ca256d0900180220/20b65e3cc204d21aca256d3300057db6?OpenDocument&Highlight=0,perth,bushfire,1997"
+  
+  So added as best could, added a value for internet, aap is media
+  '
+  #}
   
 #+end_src
 
@@ -2420,7 +2606,7 @@ A password is required and available on request to the corresponding author.
 - Download and install the latest version of psqlODBC from: [http://www.postgresql.org/ftp/odbc/versions/msi/](http://www.postgresql.org/ftp/odbc/versions/msi/)
 - Please note: If running a 64-bit version of Windows, you will want to download and install BOTH the psqlodbc_XX_XX_XXXX.zip and psqlodbc_XX_XX_XXXX-x64.zip file. 
 - Assuming you use the 32 bit windows office suite (recommended) then use the command below to open the ODBC connections tool and add a DSN for your postgres database
-- Go to Start -> Run (or Press Windows+R keys) and enter 
+- Go to Start -> Run (or Press Windows+R keys) and enter  the following (using 32 drivers even if you are on a 64 machine):
 
 ```
     %WINDIR%\SysWOW64\odbcad32.exe
@@ -2446,5 +2632,9 @@ pgAdmin is recommended for advanced users
 ![img/test.png](img/test.png)
 
 # Extending the Database using the Custom Built R Package
+
+- Download the rpostgrestools utility package [http://swish-climate-impact-assessment.github.io/rpostgrestools/](http://swish-climate-impact-assessment.github.io/rpostgrestools/)
+- install using R
+
 
 #+end_src
