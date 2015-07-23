@@ -52,7 +52,7 @@
   #rmarkdown::render("inst/doc/methods.Rmd", "pdf_document")
   # if tex get out of doc because it breaks the R build
   #file.rename("inst/doc/methods.tex", "vignettes/methods.tex")
-  # edit to remove latex header etc and urls
+  # edit to remove latex header, copy abstract etc and urls
   #file.remove("inst/doc/methods.pdf")
   dir("vignettes")
   rmarkdown::render("vignettes/BiosmokeValidatedEvents_AdditionalFile1.Rmd", "word_document")
