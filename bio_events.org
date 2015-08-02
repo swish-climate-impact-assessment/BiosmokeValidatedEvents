@@ -2901,9 +2901,9 @@ from biosmoke_events.tblreferences;
       'biomass_smoke_event',
       Field('biomass_smoke_reference_id', db.biomass_smoke_reference),
       Field('place', requires = IS_IN_SET(['ALBANY','Albury','Bathurst','BUNBURY','BUSSELTON','GERALDTON','hobart','Illawarra','launceston','Newcastle','PERTH','Sydney East','Sydney West','Tamworth','Wagga Wagga']), comment='The pre-determined study locations of the biomass smoke project.'),
-      Field('min_date', 'date', comment='The first date of known event. Compulsory.'),
       Field('event_type', requires = IS_IN_SET(['bushfire','dust','non-biomass, fire','non-biomass, non-fire','possible biomass','prescribed burn','woodsmoke']), comment = 'Compulsory. Select from list'),
-      Field('max_date', 'date', 'The last date of known event. Optional'),
+      Field('min_date', 'date', comment='The first date of known event. Compulsory.'),
+      Field('max_date', 'date', comment = 'The last date of known event. Optional'),
       Field('burn_area_ha', 'double', comment = 'The area burnt in hectares'),
       Field('met_conditions', 'text', comment = 'Free text notes about relevant meteorological conditions'),
       format = '%(place)s %(id)s' 
@@ -2922,6 +2922,7 @@ biomass_smoke_reference_id,
 place,
 min_date,
 max_date,
+event_type,
 burn_area_ha,
 met_conditions
 )
@@ -2930,6 +2931,7 @@ refid,
 place,
 mindate,
 maxdate,
+eventtype,
 cast(burnareaha as numeric),
 metconditions
 from biosmoke_events.tblevents;
@@ -3029,14 +3031,14 @@ from biosmoke_events.tblevents;
                                          db.biomass_smoke_reference.source,
                                          db.biomass_smoke_reference.credentials,
                                          db.biomass_smoke_reference.year,
-                                         db.biomass_smoke_reference.authors,
+                                         
                                          db.biomass_smoke_reference.title,
                                          db.biomass_smoke_event.place,
                                          db.biomass_smoke_event.min_date,
                                          db.biomass_smoke_event.event_type
                                          ],
                                          orderby = dict(id=db.biomass_smoke_reference.id, place=db.biomass_smoke_event.place),
-                               user_signature=True,maxtextlength =200, csv=False, paginate=35)
+                               user_signature=True,maxtextlength =50, csv=False, paginate=35)
       return dict(grid=grid)
 #+end_src  
 
@@ -3054,6 +3056,7 @@ from biosmoke_events.tblevents;
   <li>{{=XML(T('The main tool for managing events is at %s',
              A('%(application)s/forms/manage_references/'%request,
            _href=URL('forms','manage_references'))))}}</li>
+  <li>{{=T('To become a user of the data inventory please register in top right corner, then email ivan.hanigan at gmail.com requesting approval.')}}</li>
 </ol>
   {{elif 'content' in globals():}}
 {{=content}}
@@ -3074,3 +3077,5 @@ from biosmoke_events.tblevents;
   system("pandoc -i README.md -o index.html")
   file.rename("index.html", "~/tools/web2py/applications/biomass_smoke_events/static/index.html")
 #+end_src
+** scp
+rsync -avz -e "ssh -i /home/ivan_hanigan/tools/macpro_ssh/.ssh/id_rsa" /home/ivan_hanigan/tools/web2py/applications/biomass_smoke_events/ ivan@gislibrary.anu.edu.au:/home/ivan/web2py/applications/biomass_smoke_events/ 
