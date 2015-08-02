@@ -2836,35 +2836,106 @@ system.file("package = "BiosmokeValidatedEvents")
   dd  <- data_dictionary(tb1)
   write.csv(dd, gsub(".csv", "_data_dictionary.csv", tbls[1]), row.names = F)
   
-#+end_src
-*** COMMENT Events code
-#+begin_src markdown :tangle ~/tools/web2py/applications/biomass_smoke_events/models/db.py :exports reports :eval no :padline no
-    
-  db.define_table(
-      'biomass_smoke_event',
-      Field('source', 'string', comment='The source of the information. Author or Organisation.'),
-      Field('year', 'integer', comment = 'Publication year'),
-      format = '%(source)s' 
-      )
+  tb2  <- read.csv(tbls[2], stringsAsFactor = F)
   
-  db.biomass_smoke_event.source.requires = IS_NOT_EMPTY()
-
+  dd  <- data_dictionary(tb2)
+  write.csv(dd, gsub(".csv", "_data_dictionary.csv", tbls[2]), row.names = F)
+  
 #+end_src
 *** COMMENT refs code
 #+begin_src markdown :tangle ~/tools/web2py/applications/biomass_smoke_events/models/db.py :exports reports :eval no :padline no
     
   db.define_table(
       'biomass_smoke_reference',
-      Field('biomass_smoke_event_id', db.biomass_smoke_event),
-      Field('place', requires = IS_IN_SET(['Albany', 'Albury','Sydney East', 'Sydney West'])),
-      Field('min_date', 'date'),
-      Field('event_type', requires = IS_IN_SET(['bushfire','prescribed burn'])),
-      format = '%(place)s' 
+      Field('source', 'string', comment='The source. Author or Organisation.'),
+      Field('credentials', 'string', comment='Type of source.', requires=IS_IN_SET(['government','internet','journal','media','modis hotspot','modis smoke','toms'])),
+      Field('year', 'integer', comment = 'Publication year'),
+      Field('authors', 'string', comment= 'Author list.'),
+      Field('title', 'string', comment= 'Reference title.'),
+      Field('volume', 'integer', comment = 'Journal volume.'), 
+      Field('general_location', 'string', comment= 'Free text location information.'),
+      Field('url', 'string', comment= 'URL.'),
+      Field('summary', 'text', comment= 'Short summary.'),
+      Field('abstract', 'text', comment= 'Executive summary or journal abstract.'),
+      format = '%(source)s %(id)s' 
       )
   
-
+  db.biomass_smoke_reference.source.requires = IS_NOT_EMPTY()
+  db.biomass_smoke_reference.year.requires = IS_NOT_EMPTY()
 
 #+end_src
+*** COMMENT inserts-code
+#+name:inserts
+#+begin_src R :session *shell* :tangle no :exports none :eval no
+#### name:inserts ####
+INSERT INTO public.biomass_smoke_reference(
+            id, source, year,
+authors,
+title,
+volume,
+
+general_location,
+credentials,
+url,
+summary,
+abstract
+)
+select refid, field7, field4, 
+field3,
+field5,
+field10, 
+
+field32,
+field28,
+field39,
+field29,
+field37
+from biosmoke_events.tblreferences;
+
+#+end_src
+
+*** COMMENT Events code
+#+begin_src markdown :tangle ~/tools/web2py/applications/biomass_smoke_events/models/db.py :exports reports :eval no :padline no
+    
+  db.define_table(
+      'biomass_smoke_event',
+      Field('biomass_smoke_reference_id', db.biomass_smoke_reference),
+      Field('place', requires = IS_IN_SET(['ALBANY','Albury','Bathurst','BUNBURY','BUSSELTON','GERALDTON','hobart','Illawarra','launceston','Newcastle','PERTH','Sydney East','Sydney West','Tamworth','Wagga Wagga']), comment='The pre-determined study locations of the biomass smoke project.'),
+      Field('min_date', 'date', comment='The first date of known event. Compulsory.'),
+      Field('event_type', requires = IS_IN_SET(['bushfire','dust','non-biomass, fire','non-biomass, non-fire','possible biomass','prescribed burn','woodsmoke']), comment = 'Compulsory. Select from list'),
+      Field('max_date', 'date', 'The last date of known event. Optional'),
+      Field('burn_area_ha', 'double', comment = 'The area burnt in hectares'),
+      Field('met_conditions', 'text', comment = 'Free text notes about relevant meteorological conditions'),
+      format = '%(place)s %(id)s' 
+      )
+  
+  db.biomass_smoke_event.min_date.requires = IS_NOT_EMPTY()
+
+#+end_src
+*** COMMENT inserts-code
+#+name:inserts
+#+begin_src R :session *shell* :tangle no :exports none :eval no
+#### name:inserts ####
+INSERT INTO public.biomass_smoke_event(
+            id, 
+biomass_smoke_reference_id,
+place,
+min_date,
+max_date,
+burn_area_ha,
+met_conditions
+)
+select eventid,
+refid,
+place,
+mindate,
+maxdate,
+cast(burnareaha as numeric),
+metconditions
+from biosmoke_events.tblevents;
+
+#+end_src
+
 
 ** controllers
 #+begin_src R :session *R* :tangle ~/tools/web2py/applications/biomass_smoke_events/controllers/default.py :exports none :eval no :padline no
@@ -2951,14 +3022,20 @@ system.file("package = "BiosmokeValidatedEvents")
 
 #+begin_src R :session *R* :tangle ~/tools/web2py/applications/biomass_smoke_events/controllers/forms.py :exports reports :eval no :padline no
   
-  def manage_events():
-      grid = SQLFORM.smartgrid(db.biomass_smoke_event,linked_tables=['biomass_smoke_reference'
+  def manage_references():
+      grid = SQLFORM.smartgrid(db.biomass_smoke_reference,linked_tables=['biomass_smoke_event'
                                                         ],
-                               fields = [db.biomass_smoke_event.source, db.biomass_smoke_event.year,
-                                         db.biomass_smoke_reference.place, db.biomass_smoke_reference.min_date,
-                                         db.biomass_smoke_reference.event_type
+                               fields = [db.biomass_smoke_reference.id,
+                                         db.biomass_smoke_reference.source,
+                                         db.biomass_smoke_reference.credentials,
+                                         db.biomass_smoke_reference.year,
+                                         db.biomass_smoke_reference.authors,
+                                         db.biomass_smoke_reference.title,
+                                         db.biomass_smoke_event.place,
+                                         db.biomass_smoke_event.min_date,
+                                         db.biomass_smoke_event.event_type
                                          ],
-                                         orderby = dict(source=db.biomass_smoke_event.source, place=db.biomass_smoke_reference.place),
+                                         orderby = dict(id=db.biomass_smoke_reference.id, place=db.biomass_smoke_event.place),
                                user_signature=True,maxtextlength =200, csv=False, paginate=35)
       return dict(grid=grid)
 #+end_src  
@@ -2975,8 +3052,8 @@ system.file("package = "BiosmokeValidatedEvents")
 <ol>
     <li>{{=T('You are using the events data')}}</li>
   <li>{{=XML(T('The main tool for managing events is at %s',
-             A('%(application)s/forms/manage_events/'%request,
-           _href=URL('forms','manage_events'))))}}</li>
+             A('%(application)s/forms/manage_references/'%request,
+           _href=URL('forms','manage_references'))))}}</li>
 </ol>
   {{elif 'content' in globals():}}
 {{=content}}
