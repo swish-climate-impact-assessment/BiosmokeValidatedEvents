@@ -2003,6 +2003,7 @@ media/external/u3171954-H/My Documents/projects/1.302 Biomass/analysis/exposures
     }
   
 #+end_src
+
 ** COMMENT load-data-ewedb_staging-code
 #+name:load-data-ewedb
 #+begin_src R :session *R* :tangle no :exports none :eval no
@@ -2727,4 +2728,272 @@ system.file("package = "BiosmokeValidatedEvents")
 
 
 
+#+end_src
+* data entry interface
+** defaults for models/db.py
+#+begin_src markdown :tangle ~/tools/web2py/applications/biomass_smoke_events/models/db.py :exports none :eval no :padline no
+  # -*- coding: utf-8 -*-
+  
+  #########################################################################
+  ## This scaffolding model makes your app work on Google App Engine too
+  ## File is released under public domain and you can use without limitations
+  #########################################################################
+  
+  ## if SSL/HTTPS is properly configured and you want all HTTP requests to
+  ## be redirected to HTTPS, uncomment the line below:
+  # request.requires_https()
+  
+  if not request.env.web2py_runtime_gae:
+      ## if NOT running on Google App Engine use SQLite or other DB
+      ##db = DAL('sqlite://storage.sqlite',pool_size=1,check_reserved=['all'], fake_migrate_all = False)
+      db = DAL("postgres://w2p_user:xpassword@localhost:5432/ewedb_staging", fake_migrate_all = False)
+  else:
+      ## connect to Google BigTable (optional 'google:datastore://namespace')
+      db = DAL('google:datastore')
+      ## store sessions and tickets there
+      session.connect(request, response, db=db)
+      ## or store session in Memcache, Redis, etc.
+      ## from gluon.contrib.memdb import MEMDB
+      ## from google.appengine.api.memcache import Client
+      ## session.connect(request, response, db = MEMDB(Client()))
+  
+  ## by default give a view/generic.extension to all actions from localhost
+  ## none otherwise. a pattern can be 'controller/function.extension'
+  response.generic_patterns = ['*'] # if request.is_local else []
+  ## (optional) optimize handling of static files
+  # response.optimize_css = 'concat,minify,inline'
+  # response.optimize_js = 'concat,minify,inline'
+  ## (optional) static assets folder versioning
+  # response.static_version = '0.0.0'
+  #########################################################################
+  ## Here is sample code if you need for
+  ## - email capabilities
+  ## - authentication (registration, login, logout, ... )
+  ## - authorization (role based authorization)
+  ## - services (xml, csv, json, xmlrpc, jsonrpc, amf, rss)
+  ## - old style crud actions
+  ## (more options discussed in gluon/tools.py)
+  #########################################################################
+  
+  from gluon.tools import Auth, Crud, Service, PluginManager, prettydate
+  auth = Auth(db)
+  crud, service, plugins = Crud(db), Service(), PluginManager()
+  
+  ## create all tables needed by auth if not custom tables
+  auth.define_tables(username=False, signature=False)
+  
+  ## configure email
+  mail = auth.settings.mailer
+  mail.settings.server = 'logging' or 'smtp.gmail.com:587'
+  mail.settings.sender = 'you@gmail.com'
+  mail.settings.login = 'username:password'
+  
+  ## configure auth policy
+  auth.settings.registration_requires_verification = False
+  auth.settings.registration_requires_approval = True
+  auth.settings.reset_password_requires_verification = True
+  
+  ## if you need to use OpenID, Facebook, MySpace, Twitter, Linkedin, etc.
+  ## register with janrain.com, write your domain:api_key in private/janrain.key
+  from gluon.contrib.login_methods.rpx_account import use_janrain
+  use_janrain(auth, filename='private/janrain.key')
+  
+  #########################################################################
+  ## Define your tables below (or better in another model file) for example
+  ##
+  ## >>> db.define_table('mytable',Field('myfield','string'))
+  ##
+  ## Fields can be 'string','text','password','integer','double','boolean'
+  ##       'date','time','datetime','blob','upload', 'reference TABLENAME'
+  ## There is an implicit 'id integer autoincrement' field
+  ## Consult manual for more options, validators, etc.
+  ##
+  ## More API examples for controllers:
+  ##
+  ## >>> db.mytable.insert(myfield='value')
+  ## >>> rows=db(db.mytable.myfield=='value').select(db.mytable.ALL)
+  ## >>> for row in rows: print row.id, row.myfield
+  #########################################################################
+  
+  ## after defining tables, uncomment below to enable auditing
+  # auth.enable_record_versioning(db)
+#+end_src
+
+** tables
+*** COMMENT convert old table-code
+#+name:convert old table
+#+begin_src R :session *R* :tangle no :exports none :eval no
+  #### name:convert old table ####
+  library(disentangle)
+  setwd("~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents/inst/extdata")
+  tbls <- c("bio_events.tblreferences.csv",
+  "bio_events.tblevents.csv",
+  "bio_events.dust_event_records.csv",
+  "bio_events.dust_event_records2.csv")
+  dir()
+  tb1  <- read.csv(tbls[1], stringsAsFactor = F)
+  
+  dd  <- data_dictionary(tb1)
+  write.csv(dd, gsub(".csv", "_data_dictionary.csv", tbls[1]), row.names = F)
+  
+#+end_src
+*** COMMENT Events code
+#+begin_src markdown :tangle ~/tools/web2py/applications/biomass_smoke_events/models/db.py :exports reports :eval no :padline no
+    
+  db.define_table(
+      'biomass_smoke_event',
+      Field('source', 'string', comment='The source of the information. Author or Organisation.'),
+      Field('year', 'integer', comment = 'Publication year'),
+      format = '%(source)s' 
+      )
+  
+  db.biomass_smoke_event.source.requires = IS_NOT_EMPTY()
+
+#+end_src
+*** COMMENT refs code
+#+begin_src markdown :tangle ~/tools/web2py/applications/biomass_smoke_events/models/db.py :exports reports :eval no :padline no
+    
+  db.define_table(
+      'biomass_smoke_reference',
+      Field('biomass_smoke_event_id', db.biomass_smoke_event),
+      Field('place', requires = IS_IN_SET(['Albany', 'Albury','Sydney East', 'Sydney West'])),
+      Field('min_date', 'date'),
+      Field('event_type', requires = IS_IN_SET(['bushfire','prescribed burn'])),
+      format = '%(place)s' 
+      )
+  
+
+
+#+end_src
+
+** controllers
+#+begin_src R :session *R* :tangle ~/tools/web2py/applications/biomass_smoke_events/controllers/default.py :exports none :eval no :padline no
+  # -*- coding: utf-8 -*-
+  # this file is released under public domain and you can use without limitations
+  
+  #########################################################################
+  ## This is a sample controller
+  ## - index is the default action of any application
+  ## - user is required for authentication and authorization
+  ## - download is for downloading files uploaded in the db (does streaming)
+  ## - call exposes all registered services (none by default)
+  #########################################################################
+  
+  
+  def index():
+      """
+      example action using the internationalization operator T and flash
+      rendered by views/default/index.html or views/generic.html
+  
+      if you need a simple wiki simply replace the two lines below with:
+      return auth.wiki()
+      """
+      response.flash = T("Welcome to the Biomass Smoke Events Database!")
+      return dict(message=T('This database contains validated bushfire smoke events in Australian cities.'))
+   
+  
+  def user():
+      """
+      exposes:
+      http://..../[app]/default/user/login
+      http://..../[app]/default/user/logout
+      http://..../[app]/default/user/register
+      http://..../[app]/default/user/profile
+      http://..../[app]/default/user/retrieve_password
+      http://..../[app]/default/user/change_password
+      http://..../[app]/default/user/manage_users (requires membership in
+      use @auth.requires_login()
+          @auth.requires_membership('group name')
+          @auth.requires_permission('read','table name',record_id)
+      to decorate functions that need access control
+      """
+      return dict(form=auth())
+  
+  @cache.action()
+  def download():
+      """
+      allows downloading of uploaded files
+      http://..../[app]/default/download/[filename]
+      """
+      return response.download(request, db)
+  
+  
+  def call():
+      """
+      exposes services. for example:
+      http://..../[app]/default/call/jsonrpc
+      decorate with @services.jsonrpc the functions to expose
+      supports xml, json, xmlrpc, jsonrpc, amfrpc, rss, csv
+      """
+      return service()
+  
+  
+  @auth.requires_signature()
+  def data():
+      """
+      http://..../[app]/default/data/tables
+      http://..../[app]/default/data/create/[table]
+      http://..../[app]/default/data/read/[table]/[id]
+      http://..../[app]/default/data/update/[table]/[id]
+      http://..../[app]/default/data/delete/[table]/[id]
+      http://..../[app]/default/data/select/[table]
+      http://..../[app]/default/data/search/[table]
+      but URLs must be signed, i.e. linked with
+        A('table',_href=URL('data/tables',user_signature=True))
+      or with the signed load operator
+        LOAD('default','data.load',args='tables',ajax=True,user_signature=True)
+      """
+      return dict(form=crud())
+
+#+end_src
+
+** forms
+
+#+begin_src R :session *R* :tangle ~/tools/web2py/applications/biomass_smoke_events/controllers/forms.py :exports reports :eval no :padline no
+  
+  def manage_events():
+      grid = SQLFORM.smartgrid(db.biomass_smoke_event,linked_tables=['biomass_smoke_reference'
+                                                        ],
+                               fields = [db.biomass_smoke_event.source, db.biomass_smoke_event.year,
+                                         db.biomass_smoke_reference.place, db.biomass_smoke_reference.min_date,
+                                         db.biomass_smoke_reference.event_type
+                                         ],
+                                         orderby = dict(source=db.biomass_smoke_event.source, place=db.biomass_smoke_reference.place),
+                               user_signature=True,maxtextlength =200, csv=False, paginate=35)
+      return dict(grid=grid)
+#+end_src  
+
+** views
+#+begin_src markdown :tangle ~/tools/web2py/applications/biomass_smoke_events/views/default/index.html :exports reports :eval no :padline
+  {{left_sidebar_enabled,right_sidebar_enabled=False,('message' in globals())}}
+{{extend 'layout.html'}}
+  
+  {{if 'message' in globals():}}
+  <h3>{{=message}}</h3>
+
+  <h4>{{=T('Instructions')}}</h4>
+<ol>
+    <li>{{=T('You are using the events data')}}</li>
+  <li>{{=XML(T('The main tool for managing events is at %s',
+             A('%(application)s/forms/manage_events/'%request,
+           _href=URL('forms','manage_events'))))}}</li>
+</ol>
+  {{elif 'content' in globals():}}
+{{=content}}
+  {{else:}}
+{{=BEAUTIFY(response._vars)}}
+  {{pass}}
+
+  {{block right_sidebar}}
+{{=A(T("About this site"), _href=URL('static', 'index.html'), _class='btn',
+       _style='margin-top: 1em;')}}
+{{end}}
+  
+#+end_src
+
+** about
+#+begin_src R :session *R* :tangle no :exports reports :eval no :padline no
+  dir()
+  system("pandoc -i README.md -o index.html")
+  file.rename("index.html", "~/tools/web2py/applications/biomass_smoke_events/static/index.html")
 #+end_src
