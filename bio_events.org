@@ -2753,6 +2753,8 @@ system.file(package = "BiosmokeValidatedEvents")
 #+end_src
 * data entry interface
 ** defaults for models/db.py
+- might want to check in teh sqlite version if words are Reserved
+- check_reserved=['all'],
 #+begin_src markdown :tangle ~/tools/web2py/applications/biomass_smoke_events/models/db.py :exports none :eval no :padline no
   # -*- coding: utf-8 -*-
   
@@ -2767,8 +2769,8 @@ system.file(package = "BiosmokeValidatedEvents")
   
   if not request.env.web2py_runtime_gae:
       ## if NOT running on Google App Engine use SQLite or other DB
-      ##db = DAL('sqlite://storage.sqlite',pool_size=1,check_reserved=['all'], fake_migrate_all = False)
-      db = DAL("postgres://w2p_user:xpassword@localhost:5432/ewedb_staging", fake_migrate_all = False)
+      db = DAL('sqlite://storage.sqlite',pool_size=1, fake_migrate_all = False)
+      ## db = DAL("postgres://w2p_user:xpassword@localhost:5432/ewedb_staging", fake_migrate_all = False)
   else:
       ## connect to Google BigTable (optional 'google:datastore://namespace')
       db = DAL('google:datastore')
@@ -2847,6 +2849,7 @@ system.file(package = "BiosmokeValidatedEvents")
 #+begin_src R :session *R* :tangle no :exports none :eval no
   #### name:convert old table ####
   library(disentangle)
+  
   setwd("~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents/inst/extdata")
   tbls <- c("bio_events.tblreferences.csv",
   "bio_events.tblevents.csv",
@@ -2857,6 +2860,9 @@ system.file(package = "BiosmokeValidatedEvents")
   
   dd  <- data_dictionary(tb1)
   write.csv(dd, gsub(".csv", "_data_dictionary.csv", tbls[1]), row.names = F)
+  
+
+  
   
   tb2  <- read.csv(tbls[2], stringsAsFactor = F)
   
@@ -2960,6 +2966,67 @@ from biosmoke_events.tblevents;
 
 #+end_src
 
+*** COMMENT put data into sqlite
+#+name:transfer_to_sqlite
+#+begin_src R :session *R* :tangle code/transfer_to_sqlite.R :exports none :eval no
+  #### name:transfer_to_sqlite ####
+  
+  library(rpostgrestools)
+  ch <- connect2postgres2("ewedb_staging")
+  library(RSQLite)  
+  drv <- dbDriver("SQLite")
+  con <- dbConnect(drv, dbname = "~/tools/web2py/applications/biomass_smoke_events/databases/storage.sqlite")
+  dbListTables(con)
+  dat1 <- dbGetQuery(ch , "select * from biomass_smoke_reference")
+  str(dat1)
+  #dbSendQuery(con, "delete from biomass_smoke_reference")
+  qc  <- dbGetQuery(con , "select * from biomass_smoke_reference")
+  str(qc)
+  
+  dbWriteTable(con, "biomass_smoke_reference", dat1[,names(qc)], append = T, row.names=F)
+  
+  #dbSendQuery(con, "delete from biomass_smoke_event")
+  qc2  <- dbGetQuery(con , "select * from biomass_smoke_event")
+  str(qc2)
+  dat2 <- dbGetQuery(ch , "select * from biomass_smoke_event")
+  str(dat2)
+  dat2$min_date <- as.character(dat2$min_date)
+  dat2$max_date <- as.character(dat2$max_date)
+  dbWriteTable(con, "biomass_smoke_event", dat2[,names(qc2)], append = T, row.names=F)
+  
+  dat1 <- dbGetQuery(ch , "select * from biosmoke_pollution.combined_pollutants")
+  str(dat1)
+  # SQLite does not have any native date types. store them as text. the SQLite date/time functions (like date()) act on a string, not a "date object" or integer
+  dat1$date <- as.character(dat1$date)
+  # dbRemoveTable(con, "combined_pollutants")
+  #qc  <- dbGetQuery(con , "select * from combined_pollutants")
+  #str(qc)
+  dbWriteTable(con, "combined_pollutants", dat1, append = F, row.names=F)
+  qc <- dbGetQuery(con, "select * from combined_pollutants where date > '2008-12-01'")
+  table(qc$date)
+  dbGetQuery(con, "select max(date) from combined_pollutants")
+  # but WA licence precludes sharing without written consent so remove
+  wa <- dbGetQuery(ch,
+  "SELECT gid, nam, site, region, lat, lon
+    FROM biosmoke_pollution.pollution_stations_combined_final 
+    where nam = 'WESTERN AUSTRALIA'
+  ")
+  paste(wa$site, sep = "", collapse="','")
+  
+  dbGetQuery(con, "select site, count(*)
+  from combined_pollutants
+  group by site
+  order by site
+  ")
+  
+  dbSendQuery(con,
+  "delete from combined_pollutants
+  where site in ('Albany','Bunbury','Busselton','Geraldton','CavershamA',
+  'CavershamB','Duncraig','QueensBuilding','QuinnsRocks','SouthLake')
+  ")
+  
+  dbDisconnect(con)
+#+end_src
 
 ** controllers
 #+begin_src R :session *R* :tangle ~/tools/web2py/applications/biomass_smoke_events/controllers/default.py :exports none :eval no :padline no

@@ -2,11 +2,9 @@
 title: "Biosmoke Validated Events Database Instructions for Accessing"
 author: "Ivan C. Hanigan"
 output:
-  pdf_document:
-    toc: yes
   html_document:
-    toc: yes
-documentclass: article
+    toc: true
+documentclass: article    
 ---
 
 # Introduction 
