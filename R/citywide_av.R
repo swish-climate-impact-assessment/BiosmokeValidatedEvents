@@ -27,37 +27,37 @@ dbSendQuery(ch,
 paste("
 INSERT INTO biosmoke_pollution.",poll,"_",stat,"_events_",town,"_temp (
     date, ",poll,"_",stat,")
-select citywide.rawdate,
+select citywide.date,
         case when citywide.",poll," is null then citywide_",poll," else ",poll," end as citywide_",poll,"
 from
         (
-        select rawdate , avg(imputed_param) as ",poll,"
+        select date , avg(imputed_param) as ",poll,"
         from biosmoke_pollution.imputed_",poll,"_",town,"
-        group by rawdate
+        group by date
         ) citywide
 left join
         (
         select 
-                t1.rawdate, avg(t2.",poll,") as citywide_",poll," , count(*)
+                t1.date, avg(t2.",poll,") as citywide_",poll," , count(*)
         from
                 (
-                select rawdate , avg(imputed_param) as ",poll,"
+                select date , avg(imputed_param) as ",poll,"
                 from biosmoke_pollution.imputed_",poll,"_",town,"
-                group by rawdate
+                group by date
                 having avg(imputed_param) is null
                 ) t1
         ,
                 (
-                select rawdate , avg(imputed_param) as ",poll,"
+                select date , avg(imputed_param) as ",poll,"
                 from biosmoke_pollution.imputed_",poll,"_",town,"
-                group by rawdate
+                group by date
                 ) t2
-        where (t2.rawdate >= t1.rawdate-1 and  t2.rawdate <= t1.rawdate+1)
-        group by t1.rawdate
+        where (t2.date >= t1.date-1 and  t2.date <= t1.date+1)
+        group by t1.date
         having count(t2.",poll,")>1
-        order by t1.rawdate
+        order by t1.date
         ) impute_missing_days
-on citywide.rawdate=impute_missing_days.rawdate
+on citywide.date=impute_missing_days.date
 where case when citywide.",poll," is null then citywide_",poll," else ",poll," end is not null
 order by case when citywide.",poll," is null then citywide_",poll," else ",poll," end
 ",sep="")

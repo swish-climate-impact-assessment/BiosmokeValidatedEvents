@@ -1,5 +1,5 @@
 #################################################################
-projectdir <- "~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents"
+projectdir <- "~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents/inst/doc"
 setwd(projectdir)
 library(rpostgrestools)
 # you will need to request username and password
@@ -18,7 +18,7 @@ polls <- cbind(c("sulphurdioxide_pphm","nitrogendioxide_pphm",
                )
 polls
 # select on for this run
-poll_i <- 4
+poll_i <- 7
 (poll <- polls[poll_i,3])
 (pollutant <- polls[poll_i,2])
 #### Do the processing
@@ -36,11 +36,14 @@ todo
 todo$stat=ifelse(todo[,2]=='o3','max','av')
 todo
 
-i=1
+i=8
+todo[i,]
 town=todo[i,1]
 poll=todo[i,2]
-mindate=todo[i,3]
+mindate="'2003-01-01'"
+  #todo[i,3]
 stat=todo[i,4]
+maxdate_selected  <- "2014-12-31"
 source("02_loop_over_stations_calculate_net_avg.R")
 source("03_calc_extreme_events.R")
 # Now Manually validate events

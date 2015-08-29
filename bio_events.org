@@ -6,6 +6,12 @@
 #+LATEX: \tableofcontents
 -----
 
+* TODO-list
+
+** TODO grant comments
+Reading the manuscript - you state in section 2.3 a "weighted average" is being used to substitute missing data.  I assume this refers to step 3.2 but there's no mention there of what this weighting is.  Reading this, I would assume it would be some kind if area-weighted or IDW interpolation, but that's not the case is it?
+
+In the additional files document, there probably needs to be a description of the pollution database schema, field names, types, table names etc. for the pollution data because this all seems to be pretty hard coded (including town names etc.) - I guess the intention is for people to take the code and modify it to suit their data, rather than use it as an immediately usable R package?  It would be quite a challenge for an independent researcher to take their monitor data, in whatever form it may be, and run this code on in it to perform the imputation.
 * setup
 - The idea is to house a complete data and document compendium as an R package
 - Using the template from https://github.com/jhollist/manuscriptPackage
@@ -188,28 +194,30 @@ http://www.environment.nsw.gov.au/AQMS/sitesyd.htm
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
   ## Detailed Data Collation and Validation Methods
   
-  First a 'filling-in' procedure was
-  used to improve data completeness. It entailed the substitution of the
-  missing daily values with a weighted average of the values from the
-  rest of the monitoring stations. The pollutant measures from all
-  stations providing data were then averaged to provide single,
-  city-wide estimates of the daily levels of the pollutants
+  First a 'filling-in' procedure was used to improve data
+  completeness. It entailed the substitution of the missing daily values
+  with a weighted average, using the weights of the missing sites
+  3-month average proportional to the network average. The weights are
+  calculated against the values from the rest of the monitoring
+  stations. The pollutant measures from all stations providing data were
+  then averaged to provide single, city-wide estimates of the daily
+  levels of the pollutants
   
-  For each city, all days in which PM10 or PM2.5 exceeded the
-  95th percentile were identified over the entire time series. These
-  extreme values were termed 'events'. A range of sources was ex- amined
-  to identify the cause of particulate air pollution events, including
+  For each city, all days in which PM10 or PM2.5 exceeded the 95th
+  percentile were identified over the entire time series. These extreme
+  values were termed 'events'. A range of sources was ex- amined to
+  identify the cause of particulate air pollution events, including
   electronic news archives, Internet searches for other reports,
   government and research agencies, satellite imagery and a Dust Storms
   database. Also examined were remotely sensed aerosol optical thickness
   (AOT) data to provide further information about days for which the
-  other methods
+  other methods did not.
   
   Step 1. Source air pollution data. Both time series observations and spatial data regarding site locations. 
   
   Step 1.1. NSW data downloaded from an online data server.  Site locations (Lat and Long) obtained from website.
   
-  Step 1.2. WA data sent on CD from contacts at the WA Government Department, these were hourly data as provided.  Cleaned so as only days with >75% of hours are used.
+  Step 1.2. WA data sent on CD from contacts at the WA Government Department, these were hourly data as provided.  Cleaned so as only days with >75% of hours are used.  Licence puts restricions on our right to provide to a third party.  Therefore those observed and imputed data are not included, only the events.
   
   Step 1.3. Tasmanian data sent via email from contact at the Department, these were daily data.
   
@@ -232,7 +240,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
   
   Step 3. Calculate a network average. In cities where data were
-  collected from several monitoring sta- tions, the missing daily
+  collected from several monitoring stations, the missing daily
   site-specific PM concentrations were imputed using available data from
   other proximate monitoring sites in the network. The daily city-wide
   PM concentrations were then estimated following the protocol of the
@@ -253,7 +261,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
 **** main
 #+begin_src R :session *R* :tangle inst/doc/main.R :exports none :padline no :eval no
   #################################################################
-  projectdir <- "~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents"
+  projectdir <- "~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents/inst/doc"
   setwd(projectdir)
   library(rpostgrestools)
   # you will need to request username and password
@@ -268,6 +276,14 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
   towns <- c("PERTH", "Sydney","Illawarra","Lower Hunter","Hobart","Launceston")  
   
 #+end_src
+
+#+RESULTS:
+| PERTH        |
+| Sydney       |
+| Illawarra    |
+| Lower Hunter |
+| Hobart       |
+| Launceston   |
 
 **** main setup list of pollutants
 #+begin_src R :session *R* :tangle inst/doc/main.R :exports none :padline no :eval no
@@ -285,11 +301,14 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
                  )
   polls
   # select on for this run
-  poll_i <- 4
+  poll_i <- 7
   (poll <- polls[poll_i,3])
   (pollutant <- polls[poll_i,2])
   
 #+end_src
+
+#+RESULTS:
+: o3_max
 
 **** func mindates_pollutant-code
 #+name:mindates_pollutant
@@ -398,6 +417,17 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
   # note o3 only done for towns[1:4]
   
   for(town in towns){
+  #town  <- towns[2]
+  # housekeeping code to begin
+  # NB the updates made in 2015 mean that the 2007 end date is no longer
+  # correct in sydney
+  if(town == "Sydney"){
+      maxdate_selected  <- as.Date('2014-12-31')
+  }  else {
+      maxdate_selected  <- as.Date('2007-12-31')
+  }
+  
+    
   # town=towns[4]
   # for hunter make it newcastle
           if( town == "Lower Hunter"){
@@ -430,7 +460,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
   
   #### PM10
   # max date is 2007, make a table with all dates 
-  alldates_pm10_town  <- as.data.frame(as.Date(mindatesp10[,2]:as.Date('2007-12-31'),'1970-01-01'))
+  alldates_pm10_town  <- as.data.frame(as.Date(mindatesp10[,2]:maxdate_selected,'1970-01-01'))
   alldates_pm10_town$id <- 1:nrow(alldates_pm10_town)
   names(alldates_pm10_town) <- c('date','id')
   dbWriteTable(ch, paste('alldates_pm10_',tolower(town),sep=''), alldates_pm10_town, row.names = F)
@@ -449,7 +479,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
   
   #### PM2.5
   # max date is 2007, make a table with all dates 
-  alldates_pm25_town  <- as.data.frame(as.Date(mindatesp25[,2]:as.Date('2007-12-31'),'1970-01-01'))
+  alldates_pm25_town  <- as.data.frame(as.Date(mindatesp25[,2]:maxdate_selected,'1970-01-01'))
   alldates_pm25_town$id <- 1:nrow(alldates_pm25_town)
   names(alldates_pm25_town) <- c('date','id')
   dbWriteTable(ch, paste('alldates_pm25_',tolower(town),sep=''), alldates_pm25_town, row.names = F)
@@ -469,7 +499,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
   #### O3
   # max date is 2007, make a table with all dates
   if(nrow(mindateo3) > 0){        
-  alldates_o3_town  <- as.data.frame(as.Date(mindateo3[,2]:as.Date('2007-12-31'),'1970-01-01'))
+  alldates_o3_town  <- as.data.frame(as.Date(mindateo3[,2]:maxdate_selected,'1970-01-01'))
   alldates_o3_town$id <- 1:nrow(alldates_o3_town)
   names(alldates_o3_town) <- c('date','id')
   dbWriteTable(ch, paste('alldates_o3_',tolower(town),sep=''), alldates_o3_town, row.names = F)
@@ -537,13 +567,33 @@ source("01_prepare_dates.R")
   todo$stat=ifelse(todo[,2]=='o3','max','av')
   todo
   
-  i=1
+  i=8
+  todo[i,]
   town=todo[i,1]
   poll=todo[i,2]
-  mindate=todo[i,3]
+  mindate="'2003-01-01'"
+    #todo[i,3]
   stat=todo[i,4]
      
 #+end_src
+**** view todo
+          towns   V2           V3 stat
+1         PERTH pm10 '1997-05-23'   av
+2        Sydney pm10 '1994-01-01'   av
+3     Illawarra pm10 '1994-02-15'   av
+4  Lower Hunter pm10 '1994-02-02'   av
+5        Hobart pm10 '2006-04-22'   av
+6    Launceston pm10 '2001-05-01'   av
+7         PERTH pm25 '1994-02-15'   av
+8        Sydney pm25 '1996-05-07'   av
+9     Illawarra pm25 '1998-03-01'   av
+10 Lower Hunter pm25 '1996-06-19'   av
+11       Hobart pm25 '2006-06-05'   av
+12   Launceston pm25 '2005-06-04'   av
+13        PERTH   o3 '1994-01-01'  max
+14       Sydney   o3 '1994-01-01'  max
+15    Illawarra   o3 '1994-01-01'  max
+16 Lower Hunter   o3 '1994-01-01'  max
 
 **** COMMENT func sites_todo-code
 #+name:func sites_todo
@@ -558,7 +608,7 @@ source("01_prepare_dates.R")
   #' @param stat
   #' @return text for a sql query
   
-  sites_todo <- function(town, mindate, maxdate="'2007-12-31'", threshold=0.7, poll, stat){
+  sites_todo <- function(town, mindate, maxdate="2007-12-31", threshold=0.7, poll, stat){
   
   print(poll);print(town)
   print(stat)
@@ -591,7 +641,7 @@ source("01_prepare_dates.R")
                   on biosmoke_pollution.stationdates_",town,"_",poll,".station=biosmoke_pollution.combined_pollutants.site
                   and biosmoke_pollution.stationdates_",town,"_",poll,".date=biosmoke_pollution.combined_pollutants.date
                   where ",poll,"_",stat," is not null and biosmoke_pollution.stationdates_",town,"_",poll,".date >= ",mindate,"
-                                          and biosmoke_pollution.stationdates_",town,"_",poll,".date <= ",maxdate,"
+                                          and biosmoke_pollution.stationdates_",town,"_",poll,".date <= '",maxdate,"'
                   group by biosmoke_pollution.stationdates_",town,"_",poll,".station
                   ) valid
           on polls.site=valid.site
@@ -607,7 +657,7 @@ source("01_prepare_dates.R")
                   and biosmoke_pollution.stationdates_",town,"_",poll,".date=biosmoke_pollution.combined_pollutants.date
                   where ",poll,"_",stat," is not null
                   ) mindate
-          where polls.date >= ",mindate," and polls.date <= ",maxdate,"
+          where polls.date >= ",mindate," and polls.date <= '",maxdate,"'
           order by polls.date
           ) foo
   group by site, count
@@ -628,7 +678,7 @@ source("01_prepare_dates.R")
 **** R sites_todo
 #+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :padline no :eval no
   #### sites_todo
-  txt <- sites_todo(town=town,mindate=mindate,poll=poll,stat=stat)
+  txt <- sites_todo(town=town,mindate=mindate,poll=poll,stat=stat, maxdate = maxdate_selected)
   cat(txt)
   sitelist <- dbGetQuery(ch, txt)[,1]
   sitelist
@@ -672,7 +722,6 @@ source("01_prepare_dates.R")
     site character varying(255),
     rawdate date,
     rawdata double precision,
-    date date,
     networkavg double precision,
     missingavg3mo double precision,
     networkavg3mo double precision,
@@ -772,10 +821,10 @@ source("01_prepare_dates.R")
   
   # d) estimate missing days at missing sites and insert to output table
   txt <- paste("INSERT INTO  biosmoke_pollution.imputed_",poll,"_",tolower(town),"  (
-              site, rawdate, rawdata, date, networkavg, missingavg3mo, networkavg3mo, 
+              site, rawdate, rawdata, networkavg, missingavg3mo, networkavg3mo, 
               imputed, imputed_param
                                                   )
-  select raw.site, raw.date as rawdate, param as rawdata, imputed.date, networkavg, missingavg3mo, networkavg3mo, 
+  select raw.site, raw.date as rawdate, param as rawdata, networkavg, missingavg3mo, networkavg3mo, 
               imputed, case when param is null then imputed else param end as imputed_param 
   from
   (
@@ -824,15 +873,36 @@ source("01_prepare_dates.R")
   
   }
   
+  dbSendQuery(ch,
+  # cat(
+  paste("ALTER TABLE biosmoke_pollution.imputed_",poll,"_",town," rename rawdate to date",sep='')
+  )
+  
   }
   
   
 #+end_src
 **** R impute
 #+begin_src R :session *R* :tangle inst/doc/02_loop_over_stations_calculate_net_avg.R :exports none :padline no :eval no
-  impute(sitelist, town, poll, stat)
+  impute(sitelist, town, poll, stat, maxdate = maxdate_selected)
   
 #+end_src
+**** R impute_aphea2
+***** R-R impute_aphea2
+#+name:R impute_aphea2
+#+begin_src R :session *R* :tangle R/impute_aphea2.R :exports none :eval no
+################################################################
+# name:R impute_aphea2
+
+#+end_src
+***** test-R impute_aphea2
+#+name:R impute_aphea2
+#+begin_src R :session *R* :tangle tests/test-impute_aphea2.r :exports none :eval no
+################################################################
+# name:R impute_aphea2
+
+#+end_src
+
 **** COMMENT func n_missing
 #+name:func sites_todo
 #+begin_src R :session *R* :tangle R/n_missing.R :exports none :padline no :eval yes
@@ -851,23 +921,23 @@ source("01_prepare_dates.R")
   select count(*) from
   (
   select 
-   t1.rawdate, avg(t2.",poll,") as citywide_",poll," , count(*)
+   t1.date, avg(t2.",poll,") as citywide_",poll," , count(*)
   from
           (
-          select rawdate , avg(imputed_param) as ",poll,"
+          select date , avg(imputed_param) as ",poll,"
           from biosmoke_pollution.imputed_",poll,"_",town,"
-          group by rawdate
+          group by date
           having avg(imputed_param) is null
           ) t1,
           (
-          select rawdate , avg(imputed_param) as ",poll,"
+          select date , avg(imputed_param) as ",poll,"
           from biosmoke_pollution.imputed_",poll,"_",town,"
-          group by rawdate
+          group by date
           ) t2
-  where (t2.rawdate >= t1.rawdate-1 and  t2.rawdate <= t1.rawdate+1)
-  group by t1.rawdate
+  where (t2.date >= t1.date-1 and  t2.date <= t1.date+1)
+  group by t1.date
   having count(t2.",poll,")>1
-  order by t1.rawdate
+  order by t1.date
   ) foo
   ",sep="")
   )
@@ -876,9 +946,9 @@ source("01_prepare_dates.R")
   #cat(
   paste("select count(*) from
   (
-  select rawdate , avg(imputed_param) as ",poll,"
+  select date , avg(imputed_param) as ",poll,"
   from biosmoke_pollution.imputed_",poll,"_",town,"
-  group by rawdate
+  group by date
   ) bar",sep="")
   )
   
@@ -931,37 +1001,37 @@ source("01_prepare_dates.R")
   paste("
   INSERT INTO biosmoke_pollution.",poll,"_",stat,"_events_",town,"_temp (
       date, ",poll,"_",stat,")
-  select citywide.rawdate,
+  select citywide.date,
           case when citywide.",poll," is null then citywide_",poll," else ",poll," end as citywide_",poll,"
   from
           (
-          select rawdate , avg(imputed_param) as ",poll,"
+          select date , avg(imputed_param) as ",poll,"
           from biosmoke_pollution.imputed_",poll,"_",town,"
-          group by rawdate
+          group by date
           ) citywide
   left join
           (
           select 
-                  t1.rawdate, avg(t2.",poll,") as citywide_",poll," , count(*)
+                  t1.date, avg(t2.",poll,") as citywide_",poll," , count(*)
           from
                   (
-                  select rawdate , avg(imputed_param) as ",poll,"
+                  select date , avg(imputed_param) as ",poll,"
                   from biosmoke_pollution.imputed_",poll,"_",town,"
-                  group by rawdate
+                  group by date
                   having avg(imputed_param) is null
                   ) t1
           ,
                   (
-                  select rawdate , avg(imputed_param) as ",poll,"
+                  select date , avg(imputed_param) as ",poll,"
                   from biosmoke_pollution.imputed_",poll,"_",town,"
-                  group by rawdate
+                  group by date
                   ) t2
-          where (t2.rawdate >= t1.rawdate-1 and  t2.rawdate <= t1.rawdate+1)
-          group by t1.rawdate
+          where (t2.date >= t1.date-1 and  t2.date <= t1.date+1)
+          group by t1.date
           having count(t2.",poll,")>1
-          order by t1.rawdate
+          order by t1.date
           ) impute_missing_days
-  on citywide.rawdate=impute_missing_days.rawdate
+  on citywide.date=impute_missing_days.date
   where case when citywide.",poll," is null then citywide_",poll," else ",poll," end is not null
   order by case when citywide.",poll," is null then citywide_",poll," else ",poll," end
   ",sep="")
@@ -1025,11 +1095,11 @@ source("01_prepare_dates.R")
   stat=todo[i,4]
   print(stat)
   
-  txt <- sites_todo(town=town,mindate=mindate,poll=poll,stat=stat)
+  txt <- sites_todo(town=town,mindate=mindate,poll=poll,stat=stat, maxdate = maxdate_selected)
   sitelist <- dbGetQuery(ch, txt)[,1]
   #sitelist
   
-  impute(sitelist, town, poll, stat)
+  impute(sitelist, town, poll, stat, maxdate = maxdate_selected)
   
   
   nmissed=n_missing(town,poll)
@@ -1121,10 +1191,11 @@ source("01_prepare_dates.R")
   dbSendQuery(ch,'grant all on table biosmoke_pollution.o3_max_events_all_regions to biosmoke_user')
   
 #+end_src
-#+end_src
+
 **** COMMENT R main-code
 #+name:main
 #+begin_src R :session *R* :tangle inst/doc/main.R :exports none :padline no :eval no
+  maxdate_selected  <- "2014-12-31"
   source("02_loop_over_stations_calculate_net_avg.R")
   source("03_calc_extreme_events.R")
   # Now Manually validate events
@@ -1565,6 +1636,89 @@ I:/projects/1.302 Biomass/analysis/exposures/event validation/impute/quality_con
 
 head/projects/Biomass/data/pollution/summaryValidPollution4events
 I:\Dropbox\projects\1.302 Biomass\data\pollution\summaryValidPollution4events
+*** COMMENT TODO qc-plot-code
+#+name:qc-plot
+#+begin_src R :session *R* :tangle no :exports none :eval no
+  #### name:qc-plot ####
+  library(rpostgrestools)
+  ch <- connect2postgres2("ewedb_staging")
+  
+  poll  <-  "pm25"
+  sites <- "'Richmond', 'Liverpool', 'Earlwood', 'Chullora'"
+  qc <- dbGetQuery(ch,
+  sprintf("
+  SELECT site, date, rawdata, imputed_param
+    FROM biosmoke_pollution.imputed_%s_sydney
+  where site in (%s)
+  order by date
+  ", poll, sites)
+                   )
+  head(qc)
+  tail(qc)
+  with(qc, plot(date, imputed_param, type = "l", ylim = c(0,200), col = 'grey'))
+  with(na.omit(qc), lines(lowess(imputed_param ~ date, f=.02)))
+  
+  # looks like pm2.5 changedFiles
+  SELECT t1.site, min(date)
+    FROM biosmoke_pollution.combined_pollutants t1
+    join biosmoke_pollution.pollution_stations_combined_final t2
+    on t1.site = t2.site 
+    where pm25_av is not null and region = 'Sydney'
+    group by t1.site
+    order by min(date);
+  
+  SELECT site, date, rawdata, imputed_param
+    FROM biosmoke_pollution.imputed_pm25_sydney
+    where site = 'Richmond'
+    order by date;
+  
+  
+  SELECT site, date, pm25_av
+    FROM biosmoke_pollution.combined_pollutants
+    where (site = 'Richmond' or site = 'Earlwood')
+    and date between '2011-07-01' and '2011-07-29'
+    order by date;
+  
+#+end_src
+
+*** COMMENT qc-pm25-output-code
+#+name:qc-pm25-output
+#+begin_src R :session *R* :tangle no :exports none :eval no
+  #### name:qc-pm25-output ####
+  library(rpostgrestools)
+  ch <- connect2postgres2("ewedb_staging")
+  
+  poll  <-  "pm25"
+  sites <- "'Richmond', 'Liverpool', 'Earlwood', 'Chullora'"
+  
+  dbGetQuery(ch,
+  "SELECT site, date, rawdata, date, networkavg, missingavg3mo, networkavg3mo, 
+         imputed, imputed_param
+    FROM biosmoke_pollution.imputed_pm25_sydney
+    where site = 'Liverpool' and date between '2004-01-01' and '2004-02-17'
+    order by date
+  "
+             )
+  
+  
+  
+  
+  
+  
+  qc <- dbGetQuery(ch,
+  sprintf("
+  SELECT site, date, rawdata, imputed_param
+    FROM biosmoke_pollution.imputed_%s_sydney
+  where site in (%s)
+  order by date
+  ", poll, sites)
+                   )
+  head(qc)
+  tail(qc)
+  with(qc, plot(date, imputed_param, type = "l", ylim = c(0,200), col = 'grey'))
+  with(na.omit(qc), lines(lowess(imputed_param ~ date, f=.02)))
+  
+#+end_src
 
 ** availability
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :padline no :eval no :padline yes 
@@ -2968,7 +3122,7 @@ from biosmoke_events.tblevents;
 
 *** COMMENT put data into sqlite
 #+name:transfer_to_sqlite
-#+begin_src R :session *R* :tangle code/transfer_to_sqlite.R :exports none :eval no
+#+begin_src R :session *R* :tangle no :exports none :eval no
   #### name:transfer_to_sqlite ####
   
   library(rpostgrestools)

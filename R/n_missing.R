@@ -13,23 +13,23 @@ paste("
 select count(*) from
 (
 select 
- t1.rawdate, avg(t2.",poll,") as citywide_",poll," , count(*)
+ t1.date, avg(t2.",poll,") as citywide_",poll," , count(*)
 from
         (
-        select rawdate , avg(imputed_param) as ",poll,"
+        select date , avg(imputed_param) as ",poll,"
         from biosmoke_pollution.imputed_",poll,"_",town,"
-        group by rawdate
+        group by date
         having avg(imputed_param) is null
         ) t1,
         (
-        select rawdate , avg(imputed_param) as ",poll,"
+        select date , avg(imputed_param) as ",poll,"
         from biosmoke_pollution.imputed_",poll,"_",town,"
-        group by rawdate
+        group by date
         ) t2
-where (t2.rawdate >= t1.rawdate-1 and  t2.rawdate <= t1.rawdate+1)
-group by t1.rawdate
+where (t2.date >= t1.date-1 and  t2.date <= t1.date+1)
+group by t1.date
 having count(t2.",poll,")>1
-order by t1.rawdate
+order by t1.date
 ) foo
 ",sep="")
 )
@@ -38,9 +38,9 @@ noverall<- dbGetQuery(ch,
 #cat(
 paste("select count(*) from
 (
-select rawdate , avg(imputed_param) as ",poll,"
+select date , avg(imputed_param) as ",poll,"
 from biosmoke_pollution.imputed_",poll,"_",town,"
-group by rawdate
+group by date
 ) bar",sep="")
 )
 

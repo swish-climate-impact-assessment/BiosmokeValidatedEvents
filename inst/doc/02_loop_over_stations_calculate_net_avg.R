@@ -1,9 +1,9 @@
 #### sites_todo
-txt <- sites_todo(town=town,mindate=mindate,poll=poll,stat=stat)
+txt <- sites_todo(town=town,mindate=mindate,poll=poll,stat=stat, maxdate = maxdate_selected)
 cat(txt)
 sitelist <- dbGetQuery(ch, txt)[,1]
 sitelist
-impute(sitelist, town, poll, stat)
+impute(sitelist, town, poll, stat, maxdate = maxdate_selected)
 # no avg all sites per day for city wide averages  
 # AND fill any missing days with avg of before and after (if this is less than 5% of days)
 # first make sure the number of missing days with one valid either side is < 5% of total days
@@ -27,11 +27,11 @@ print(mindate)
 stat=todo[i,4]
 print(stat)
 
-txt <- sites_todo(town=town,mindate=mindate,poll=poll,stat=stat)
+txt <- sites_todo(town=town,mindate=mindate,poll=poll,stat=stat, maxdate = maxdate_selected)
 sitelist <- dbGetQuery(ch, txt)[,1]
 #sitelist
 
-impute(sitelist, town, poll, stat)
+impute(sitelist, town, poll, stat, maxdate = maxdate_selected)
 
 
 nmissed=n_missing(town,poll)

@@ -14,6 +14,17 @@ matrix(towns)
 # note o3 only done for towns[1:4]
 
 for(town in towns){
+#town  <- towns[2]
+# housekeeping code to begin
+# NB the updates made in 2015 mean that the 2007 end date is no longer
+# correct in sydney
+if(town == "Sydney"){
+    maxdate_selected  <- as.Date('2014-12-31')
+}  else {
+    maxdate_selected  <- as.Date('2007-12-31')
+}
+
+  
 # town=towns[4]
 # for hunter make it newcastle
         if( town == "Lower Hunter"){
@@ -46,7 +57,7 @@ mindatesp10[,2] <- as.Date('1997-05-09')
 
 #### PM10
 # max date is 2007, make a table with all dates 
-alldates_pm10_town  <- as.data.frame(as.Date(mindatesp10[,2]:as.Date('2007-12-31'),'1970-01-01'))
+alldates_pm10_town  <- as.data.frame(as.Date(mindatesp10[,2]:maxdate_selected,'1970-01-01'))
 alldates_pm10_town$id <- 1:nrow(alldates_pm10_town)
 names(alldates_pm10_town) <- c('date','id')
 dbWriteTable(ch, paste('alldates_pm10_',tolower(town),sep=''), alldates_pm10_town, row.names = F)
@@ -65,7 +76,7 @@ paste('drop table alldates_pm10_',town,sep='')
 
 #### PM2.5
 # max date is 2007, make a table with all dates 
-alldates_pm25_town  <- as.data.frame(as.Date(mindatesp25[,2]:as.Date('2007-12-31'),'1970-01-01'))
+alldates_pm25_town  <- as.data.frame(as.Date(mindatesp25[,2]:maxdate_selected,'1970-01-01'))
 alldates_pm25_town$id <- 1:nrow(alldates_pm25_town)
 names(alldates_pm25_town) <- c('date','id')
 dbWriteTable(ch, paste('alldates_pm25_',tolower(town),sep=''), alldates_pm25_town, row.names = F)
@@ -85,7 +96,7 @@ paste('drop table alldates_pm25_',town,sep='')
 #### O3
 # max date is 2007, make a table with all dates
 if(nrow(mindateo3) > 0){        
-alldates_o3_town  <- as.data.frame(as.Date(mindateo3[,2]:as.Date('2007-12-31'),'1970-01-01'))
+alldates_o3_town  <- as.data.frame(as.Date(mindateo3[,2]:maxdate_selected,'1970-01-01'))
 alldates_o3_town$id <- 1:nrow(alldates_o3_town)
 names(alldates_o3_town) <- c('date','id')
 dbWriteTable(ch, paste('alldates_o3_',tolower(town),sep=''), alldates_o3_town, row.names = F)

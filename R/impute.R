@@ -33,7 +33,6 @@ paste("CREATE TABLE biosmoke_pollution.imputed_",poll,"_",town,"
   site character varying(255),
   rawdate date,
   rawdata double precision,
-  date date,
   networkavg double precision,
   missingavg3mo double precision,
   networkavg3mo double precision,
@@ -133,10 +132,10 @@ print(endd-strt)
 
 # d) estimate missing days at missing sites and insert to output table
 txt <- paste("INSERT INTO  biosmoke_pollution.imputed_",poll,"_",tolower(town),"  (
-            site, rawdate, rawdata, date, networkavg, missingavg3mo, networkavg3mo, 
+            site, rawdate, rawdata, networkavg, missingavg3mo, networkavg3mo, 
             imputed, imputed_param
                                                 )
-select raw.site, raw.date as rawdate, param as rawdata, imputed.date, networkavg, missingavg3mo, networkavg3mo, 
+select raw.site, raw.date as rawdate, param as rawdata, networkavg, missingavg3mo, networkavg3mo, 
             imputed, case when param is null then imputed else param end as imputed_param 
 from
 (
@@ -184,5 +183,10 @@ dbSendQuery(ch,"drop table biosmoke_pollution.missingavg3mo;")
 dbSendQuery(ch,"drop table biosmoke_pollution.networkavg3mo;")
 
 }
+
+dbSendQuery(ch,
+# cat(
+paste("ALTER TABLE biosmoke_pollution.imputed_",poll,"_",town," rename rawdate to date",sep='')
+)
 
 }

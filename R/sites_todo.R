@@ -8,7 +8,7 @@
 #' @param stat
 #' @return text for a sql query
 
-sites_todo <- function(town, mindate, maxdate="'2007-12-31'", threshold=0.7, poll, stat){
+sites_todo <- function(town, mindate, maxdate="2007-12-31", threshold=0.7, poll, stat){
 
 print(poll);print(town)
 print(stat)
@@ -41,7 +41,7 @@ from
                 on biosmoke_pollution.stationdates_",town,"_",poll,".station=biosmoke_pollution.combined_pollutants.site
                 and biosmoke_pollution.stationdates_",town,"_",poll,".date=biosmoke_pollution.combined_pollutants.date
                 where ",poll,"_",stat," is not null and biosmoke_pollution.stationdates_",town,"_",poll,".date >= ",mindate,"
-                                        and biosmoke_pollution.stationdates_",town,"_",poll,".date <= ",maxdate,"
+                                        and biosmoke_pollution.stationdates_",town,"_",poll,".date <= '",maxdate,"'
                 group by biosmoke_pollution.stationdates_",town,"_",poll,".station
                 ) valid
         on polls.site=valid.site
@@ -57,7 +57,7 @@ from
                 and biosmoke_pollution.stationdates_",town,"_",poll,".date=biosmoke_pollution.combined_pollutants.date
                 where ",poll,"_",stat," is not null
                 ) mindate
-        where polls.date >= ",mindate," and polls.date <= ",maxdate,"
+        where polls.date >= ",mindate," and polls.date <= '",maxdate,"'
         order by polls.date
         ) foo
 group by site, count
