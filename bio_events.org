@@ -998,11 +998,12 @@ impute_aphea2 <- function(aqdf){
   # name:R impute_aphea2
   setwd("../..")
   dir()
-  sydney <- read.csv (file = "data/sydney.csv")
+  sydney <- read.csv (file = "data/sydney_pm25.csv")
   str(sydney)
   
   imputed_sydney <- impute_aphea2(sydney)
   str(imputed_sydney)
+  head(imputed_sydney)
   imputed_sydney$date <-  as.Date(imputed_sydney$date, origin = '1970-01-01')
   imputed_sydney$date <-  as.character(imputed_sydney$date)
   names(imputed_sydney) <- gsub("\\.", "_", names(imputed_sydney))
@@ -1012,15 +1013,17 @@ impute_aphea2 <- function(aqdf){
   str(sydney)
   names(sydney) <- gsub("\\.", "_", names(sydney))
   
-  
+  mindate <- '1996-05-14' # '2004-01-04'
   sqldf::sqldf(drv="SQLite",
-  "select t1.site, t1.date, t1.pm2_5, t2.pm2_5 as orig
+  sprintf("select t1.site, t1.date, t1.pm2_5, t2.pm2_5 as orig
   from imputed_sydney t1
   left join
   sydney t2
   on t1.site = t2.site and t1.date = t2.date
-  where t1.site = 'liverpool' and t1.date <= '2004-02-17'
-  ")
+  where t1.site = 'earlwood' and t1.date <= '%s'
+  ", mindate)
+  )
+  
   
   
 #+end_src
@@ -1808,13 +1811,14 @@ I:\Dropbox\projects\1.302 Biomass\data\pollution\summaryValidPollution4events
 #+begin_src R :session *R* :tangle no :exports none :eval no
   #### name:qc-pm25-output ####
   library(rpostgrestools)
+  library(disentangle)
   ch <- connect2postgres2("ewedb_staging")
-  
+  options(width=750)
   poll  <-  "pm25"
   sites <- "'Richmond', 'Liverpool', 'Earlwood', 'Chullora'"
   
   dbGetQuery(ch,
-  "SELECT site, date, rawdata, date, networkavg, missingavg3mo, networkavg3mo, 
+  "SELECT site, date, rawdata, networkavg, missingavg3mo, networkavg3mo, 
          imputed, imputed_param
     FROM biosmoke_pollution.imputed_pm25_sydney
     where site = 'Liverpool' and date between '2004-01-01' and '2004-02-17'
@@ -1822,23 +1826,110 @@ I:\Dropbox\projects\1.302 Biomass\data\pollution\summaryValidPollution4events
   "
              )
   
-  
-  
-  
-  
-  
   qc <- dbGetQuery(ch,
   sprintf("
   SELECT site, date, rawdata, imputed_param
     FROM biosmoke_pollution.imputed_%s_sydney
   where site in (%s)
-  order by date
+  order by site, date
   ", poll, sites)
                    )
+  data_dictionary(qc)
   head(qc)
   tail(qc)
-  with(qc, plot(date, imputed_param, type = "l", ylim = c(0,200), col = 'grey'))
-  with(na.omit(qc), lines(lowess(imputed_param ~ date, f=.02)))
+  write.csv(qc, "data/sydney_pm25_2003_2014.csv", row.names = F)
+  
+  ## Quality Checks
+  max_y  <- 50
+  par(mfrow=c(2,2))
+  for(site_i in sitelist){
+    print(site_i)
+    qc2 <- subset(qc, site == site_i)
+  with(qc2, plot(date, imputed_param, type = "l", ylim = c(0,max_y), col = 'grey'))
+  with(na.omit(qc2), lines(lowess(imputed_param ~ date, f=.02)))
+    title(site_i)
+  }
+  dev.off()
+  # now compare with farhads
+  devtools::load_all()
+  dat  <- dbGetQuery(ch,
+  #                   cat(
+  sprintf("
+  SELECT t1.station as site, t1.date, %s_av
+    FROM biosmoke_pollution.stationdates_sydney_pm25 t1
+  left join
+  biosmoke_pollution.combined_pollutants t2
+  on t1.station = t2.site and t1.date = t2.date
+  where t1.station in (%s) and t1.date >= '2003-01-01'
+  order by t1.date
+  ", poll, sites)
+                   )
+  str(dat)
+  testqc <- sqldf::sqldf(drv = "SQLite",
+  "select date, count(*)
+  from dat
+  group by date"
+               )
+  data_dictionary(testqc)
+  data_dictionary(dat)
+  head(subset(dat, site == "Earlwood", date >= as.Date("1996-05-07")))
+  head(subset(dat, date == as.Date("1996-05-07")))
+  dat$date <- format(dat$date, "%d/%m/%Y")
+  imputed  <- impute_aphea2(dat)
+  str(imputed)
+  imputed$date  <-  as.Date(imputed$date)
+  qc1 <- reshape::cast(imputed, date  ~ site)
+  str(qc1)
+  head(subset(qc1, date >= as.Date("1996-09-01")), 50)
+  
+  str(qc)
+  qc2 <- as.data.frame(left_join(imputed, qc))
+  str(qc2)
+  data_dictionary(qc2)
+  
+  head(qc2[order(qc2$site),], 50)
+  # I still get phantom data included
+  qc2$pm25_av <- ifelse(is.na(qc2$imputed_param), NA, qc2$pm25_av)
+  
+  
+  qc2$date <- as.character(qc2$date)
+  qcfoo <- sqldf::sqldf(drv = "SQLite",
+               "select *
+  from qc2
+  where site = 'Chullora' and date <= '2003-04-17'
+  ")
+  qcfoo
+  
+  tail(qc2[order(qc2$site),])
+  head(subset(qc2, site == "Earlwood"), 50)
+  head(subset(dat, site == "Earlwood"), 50)
+  head(subset(imputed, site == "Earlwood"), 50)
+  head(qc2[order(qc2$site),], 50)
+  qc2.1 <- qc2[is.na(qc2$rawdata),]
+  qc2.1 <- qc2.1[!is.na(qc2.1$pm25_av),]
+  head(qc2.1)
+  with(qc2.1, plot(pm25_av, imputed_param, xlim = c(0,50), ylim=c(0,50)))
+  fit <- lm(imputed_param ~ pm25_av, data = qc2.1)
+  summary(fit)
+  abline(fit$coeff, col = 'red')
+  abline(0,1, col = 'blue')
+  
+  #write.csv(qc2, "~/Desktop/qc2.csv", row.names = F)
+  
+  ## testdata <- read.csv("data/sydney.csv", stringsAsFactor = F)
+  ## testqc <- sqldf::sqldf(drv = "SQLite",
+  ## "select date, count(*)
+  ## from testdata
+  ## group by date"
+  ##              )
+  ## data_dictionary(testqc)
+  
+  
+  ## # ask Farhad
+  ## names(dat) <- gsub("pm25_av", "pm2.5", names(dat))
+  ## dat$site <- tolower(dat$site)
+  ## data_dictionary(dat)
+  ## write.csv(dat, "data/sydney_pm25.csv", row.names = F)
   
 #+end_src
 
