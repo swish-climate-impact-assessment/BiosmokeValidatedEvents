@@ -2533,186 +2533,202 @@ http://www.biomedcentral.com/bmcresnotes/authors/instructions/datanote
 run with R studio
 #+name:latex_head
 #+begin_src sh :session *shell* :tangle vignettes/BiosmokeValidatedEvents_DataNote.tex :exports none :eval no :padline no
-%% BioMed_Central_Tex_Template_v1.06
-%%                                      %
-%  bmc_article.tex            ver: 1.06 %
-%                                       %
-
-%%IMPORTANT: do not delete the first line of this template
-%%It must be present to enable the BMC Submission system to
-%%recognise this template!!
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%                                     %%
-%%  LaTeX template for BioMed Central  %%
-%%     journal article submissions     %%
-%%                                     %%
-%%          <8 June 2012>              %%
-%%                                     %%
-%%                                     %%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%                                                                 %%
-%% For instructions on how to fill out this Tex template           %%
-%% document please refer to Readme.html and the instructions for   %%
-%% authors page on the biomed central website                      %%
-%% http://www.biomedcentral.com/info/authors/                      %%
-%%                                                                 %%
-%% Please do not use \input{...} to include other tex files.       %%
-%% Submit your LaTeX manuscript as one .tex document.              %%
-%%                                                                 %%
-%% All additional figures and files should be attached             %%
-%% separately and not embedded in the \TeX\ document itself.       %%
-%%                                                                 %%
-%% BioMed Central currently use the MikTex distribution of         %%
-%% TeX for Windows) of TeX and LaTeX.  This is available from      %%
-%% http://www.miktex.org                                           %%
-%%                                                                 %%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%% additional documentclass options:
-%  [doublespacing]
-%  [linenumbers]   - put the line numbers on margins
-
-%%% loading packages, author definitions
-
-%\documentclass[twocolumn]{bmcart}% uncomment this for twocolumn layout and comment line below
-\documentclass{bmcart}
-
-%%% Load packages
-%\usepackage{amsthm,amsmath}
-%\RequirePackage{natbib}
-%\RequirePackage[authoryear]{natbib}% uncomment this for author-year bibliography
-%\RequirePackage{hyperref}
-\usepackage[utf8]{inputenc} %unicode support
-%\usepackage[applemac]{inputenc} %applemac support if unicode package fails
-%\usepackage[latin1]{inputenc} %UNIX support if unicode package fails
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%                                             %%
-%%  If you wish to display your graphics for   %%
-%%  your own use using includegraphic or       %%
-%%  includegraphics, then comment out the      %%
-%%  following two lines of code.               %%
-%%  NB: These line *must* be included when     %%
-%%  submitting to BMC.                         %%
-%%  All figure files must be submitted as      %%
-%%  separate graphics through the BMC          %%
-%%  submission process, not included in the    %%
-%%  submitted article.                         %%
-%%                                             %%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-\def\includegraphic{}
-\def\includegraphics{}
-
-
-
-%%% Put your definitions there:
-\startlocaldefs
-\endlocaldefs
-
-
-%%% Begin ...
-\begin{document}
-
-%%% Start of article front matter
-\begin{frontmatter}
-
-\begin{fmbox}
-\dochead{Data Note (Draft 2015-07-14)}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%                                          %%
-%% Enter the title of your article here     %%
-%%                                          %%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\title{An Online Extensible Database of Validated Extreme Air Pollution Events for Health Research}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%                                          %%
-%% Enter the authors here                   %%
-%%                                          %%
-%% Specify information, if available,       %%
-%% in the form:                             %%
-%%   <key>={<id1>,<id2>}                    %%
-%%   <key>=                                 %%
-%% Comment or delete the keys which are     %%
-%% not used. Repeat \author command as much %%
-%% as required.                             %%
-%%                                          %%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\author[
-   addressref={aff1},                   % id's of addresses, e.g. {aff1,aff2}
-   corref={aff1},                       % id of corresponding address, if any
-%   noteref={n1},                        % id's of article notes, if any
-   email={ivan.hanigan@anu.edu.au}   % email address
-]{\inits{IC}\fnm{Ivan C} \snm{Hanigan}}
-\author[
-   addressref={aff2},
-   email={fay.johnston@utas.edu.au}
-]{\inits{FH}\fnm{Fay H} \snm{Johnston}}
-\author[
-   addressref={aff3},
-   email={geoff.morgan@nsw.gov.au}
-]{\inits{GG}\fnm{Geoff G} \snm{Morgan}}
-\author[
-   addressref={aff2},
-   email={someone@somewhere.com.au}
-]{\inits{SS}\fnm{Someone} \snm{Else}}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%                                          %%
-%% Enter the authors' addresses here        %%
-%%                                          %%
-%% Repeat \address commands as much as      %%
-%% required.                                %%
-%%                                          %%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\address[id=aff1]{%                           % unique id
-  \orgname{National Centre of Epidemiology, ANU}, % university, etc
-  \street{Eggleston Road},                     %
-  %\postcode{}                                % post or zip code
-  \city{Canberra},                              % city
-  \cny{AU}                                    % country
-}
-\address[id=aff2]{%
-  \orgname{Menzies School, UTAS},
-  \street{D\"{u}sternbrooker Weg 20},
-  \postcode{}
-  \city{Hobart},
-  \cny{AU}
-}
-\address[id=aff3]{%
-  \orgname{University of Sydney, NSW},
-  \street{D\"{u}sternbrooker Weg 20},
-  \postcode{}
-  \city{Sydney},
-  \cny{AU}
-}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%                                          %%
-%% Enter short notes here                   %%
-%%                                          %%
-%% Short notes will be after addresses      %%
-%% on first page.                           %%
-%%                                          %%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%\begin{artnotes}
-%\note{Sample of title note}     % note to the article
-%\note[id=n1]{Equal contributor} % note, connected to author
-%\end{artnotes}
-
-\end{fmbox}% comment this for two column layout
+  %% BioMed_Central_Tex_Template_v1.06
+  %%                                      %
+  %  bmc_article.tex            ver: 1.06 %
+  %                                       %
+  
+  %%IMPORTANT: do not delete the first line of this template
+  %%It must be present to enable the BMC Submission system to
+  %%recognise this template!!
+  
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %%                                     %%
+  %%  LaTeX template for BioMed Central  %%
+  %%     journal article submissions     %%
+  %%                                     %%
+  %%          <8 June 2012>              %%
+  %%                                     %%
+  %%                                     %%
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+  
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %%                                                                 %%
+  %% For instructions on how to fill out this Tex template           %%
+  %% document please refer to Readme.html and the instructions for   %%
+  %% authors page on the biomed central website                      %%
+  %% http://www.biomedcentral.com/info/authors/                      %%
+  %%                                                                 %%
+  %% Please do not use \input{...} to include other tex files.       %%
+  %% Submit your LaTeX manuscript as one .tex document.              %%
+  %%                                                                 %%
+  %% All additional figures and files should be attached             %%
+  %% separately and not embedded in the \TeX\ document itself.       %%
+  %%                                                                 %%
+  %% BioMed Central currently use the MikTex distribution of         %%
+  %% TeX for Windows) of TeX and LaTeX.  This is available from      %%
+  %% http://www.miktex.org                                           %%
+  %%                                                                 %%
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+  %%% additional documentclass options:
+  %  [doublespacing]
+  %  [linenumbers]   - put the line numbers on margins
+  
+  %%% loading packages, author definitions
+  
+  %\documentclass[twocolumn]{bmcart}% uncomment this for twocolumn layout and comment line below
+  \documentclass{bmcart}
+  
+  %%% Load packages
+  %\usepackage{amsthm,amsmath}
+  %\RequirePackage{natbib}
+  %\RequirePackage[authoryear]{natbib}% uncomment this for author-year bibliography
+  %\RequirePackage{hyperref}
+  \usepackage[utf8]{inputenc} %unicode support
+  %\usepackage[applemac]{inputenc} %applemac support if unicode package fails
+  %\usepackage[latin1]{inputenc} %UNIX support if unicode package fails
+  
+  
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %%                                             %%
+  %%  If you wish to display your graphics for   %%
+  %%  your own use using includegraphic or       %%
+  %%  includegraphics, then comment out the      %%
+  %%  following two lines of code.               %%
+  %%  NB: These line *must* be included when     %%
+  %%  submitting to BMC.                         %%
+  %%  All figure files must be submitted as      %%
+  %%  separate graphics through the BMC          %%
+  %%  submission process, not included in the    %%
+  %%  submitted article.                         %%
+  %%                                             %%
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+  
+  \def\includegraphic{}
+  \def\includegraphics{}
+  
+  
+  
+  %%% Put your definitions there:
+  \startlocaldefs
+  \endlocaldefs
+  
+  
+  %%% Begin ...
+  \begin{document}
+  
+  %%% Start of article front matter
+  \begin{frontmatter}
+  
+  \begin{fmbox}
+  \dochead{Data Note (\today)}
+  
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %%                                          %%
+  %% Enter the title of your article here     %%
+  %%                                          %%
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+  \title{An Online Extensible Database of Validated Extreme Air Pollution Events for Health Research}
+  
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %%                                          %%
+  %% Enter the authors here                   %%
+  %%                                          %%
+  %% Specify information, if available,       %%
+  %% in the form:                             %%
+  %%   <key>={<id1>,<id2>}                    %%
+  %%   <key>=                                 %%
+  %% Comment or delete the keys which are     %%
+  %% not used. Repeat \author command as much %%
+  %% as required.                             %%
+  %%                                          %%
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+  \author[
+     addressref={aff1},                   % id's of addresses, e.g. {aff1,aff2}
+     corref={aff1},                       % id of corresponding address, if any
+  %   noteref={n1},                        % id's of article notes, if any
+     email={ivan.hanigan@anu.edu.au}   % email address
+  ]{\inits{IC}\fnm{Ivan C.} \snm{Hanigan}}
+  \author[
+     addressref={aff2},
+     email={fay.johnston@utas.edu.au}
+  ]{\inits{FH}\fnm{Fay H.} \snm{Johnston}}
+  \author[
+     addressref={aff3},
+     email={geoff.morgan@nsw.gov.au}
+  ]{\inits{GG}\fnm{Geoffrey G.} \snm{Morgan}}
+  \author[
+     addressref={aff2},
+     email={grant.williamson@utas.edu.au}
+  ]{\inits{GW}\fnm{Grant J.} \snm{Williamson}}
+  \author[
+     addressref={aff2},
+     email={Farhad.Salimi@utas.edu.au}
+  ]{\inits{FS}\fnm{Farhad} \snm{Salimi}}
+  \author[
+     addressref={aff4},
+     email={Sarah.Henderson@bccdc.ca}
+  ]{\inits{SH}\fnm{Sarah B.} \snm{Henderson}}
+  
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %%                                          %%
+  %% Enter the authors' addresses here        %%
+  %%                                          %%
+  %% Repeat \address commands as much as      %%
+  %% required.                                %%
+  %%                                          %%
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+  \address[id=aff1]{%                           % unique id
+    \orgname{National Centre for Epidemiology and Population Health, Australian National University}, % university, etc
+    \street{Eggleston Road},                     %
+    %\postcode{}                                % post or zip code
+    \city{Canberra},                              % city
+    \cny{AU}                                    % country
+  }
+  \address[id=aff2]{%
+    \orgname{Menzies School of Population Health, University of Tasmania},
+    \street{},
+    \postcode{}
+    \city{Hobart},
+    \cny{AU}
+  }
+  \address[id=aff3]{%
+    \orgname{University Centre for Rural Health, University of Sydney},
+    \street{},
+    \postcode{}
+    \city{Sydney},
+    \cny{AU}
+  }
+  \address[id=aff4]{%
+    \orgname{School of Population and Public Health, University of British Columbia},
+    \street{},
+    \postcode{}
+    \city{Vancouver},
+    \cny{CA}
+  }
+  
+  
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %%                                          %%
+  %% Enter short notes here                   %%
+  %%                                          %%
+  %% Short notes will be after addresses      %%
+  %% on first page.                           %%
+  %%                                          %%
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+  %\begin{artnotes}
+  %\note{Sample of title note}     % note to the article
+  %\note[id=n1]{Equal contributor} % note, connected to author
+  %\end{artnotes}
+  
+  \end{fmbox}% comment this for two column layout
 #+end_src
 *** abstract-methods
 #+begin_src sh :session *shell* :tangle vignettes/BiosmokeValidatedEvents_DataNote.tex :exports none :eval no :padline no
