@@ -2010,7 +2010,7 @@ I:\Dropbox\projects\1.302 Biomass\data\pollution\summaryValidPollution4events
 #+end_src
 
 #+RESULTS: go
-: data_deposit_form.html
+: /home/ivan_hanigan/tools/web2py/applications/biomass_smoke_events/static/protocol-template.html
 
 *** summary of data for ETL
 #+begin_src R :session *R* :tangle inst/doc/data_deposit_form.Rmd :exports none :eval no :padline no
@@ -3268,7 +3268,7 @@ system.file(package = "BiosmokeValidatedEvents")
       Field('url', 'string', comment= 'URL.'),
       Field('summary', 'text', comment= 'Short summary.'),
       Field('abstract', 'text', comment= 'Executive summary or journal abstract.'),
-      Field('protocol_used', 'text', comment= 'The protocol used to identify evidence of an event, for example Johnston2011 for the original method of searching all news, journals, reports and satellite data, or Satellite Only if only satellite data where used.  Optionally leave this blank and it will be inserted on submission to the online master database.  Please also submit information on the protocol to the database manager.'),
+      Field('protocol_used', 'text', comment = XML(T('%s. The protocol used to identify evidence of an event, for example Johnston2011 for the original method of searching all news, journals, reports and satellite data, or Satellite Only if only satellite data where used.  Optionally leave this blank and it will be inserted on submission to the online master database.  Please also submit information on the protocol to the database manager.', A('More details are available here', _href=XML(URL('static','index.html',  anchor='sec-5-2', scheme=True, host=True)))))),
       format = '%(source)s %(id)s' 
       )
   
@@ -3598,4 +3598,40 @@ rsync -avz -e "ssh -i /home/ivan_hanigan/tools/macpro_ssh/.ssh/id_rsa" /home/iva
 #+end_src
 
 #+RESULTS: pgdump
+
+* TODO protocol section
+*** COMMENT go
+#+name:go
+#+begin_src R :session *R* :tangle go.R :exports none :eval yes
+  #### name:go ####
+  setwd("~/tools/web2py/applications/biomass_smoke_events/static/")
+  
+  dir()
+  rmarkdown::render("protocol-template.Rmd")
+  #browseURL("protocol-template.html")
+#+end_src
+
+** protocol-template
+#+name:protocol-template-header
+#+begin_src R :session *R* :tangle ~/tools/web2py/applications/biomass_smoke_events/static/protocol-template.Rmd :exports none :eval no :padline no
+  ---
+  title: protocol-template
+  author: ivanhanigan
+  ---
+  
+  ```{r, eval = T, echo = F, results = "asis"}
+  library(xtable)
+  tab <- read.csv(textConnection("variable, value
+  protocol_name, Johnston2011
+  search_start_date, 1994-01-01
+  search_end_date,   2007-12-31
+  geographic_coverage, \"ALBANY,Albury,Bathurst,BUNBURY,BUSSELTON,GERALDTON,hobart,Illawarra,launceston,Newcastle,PERTH,Sydney East,Sydney West,Tamworth,Wagga Wagga\"
+  air_pollution_imputation_method, APHEA2
+  method_steps, see the paper"
+  ), strip.white = T)
+  #tab
+  print(xtable(tab), type = "html", include.rownames = F)
+  ```
+      
+#+end_src
 
