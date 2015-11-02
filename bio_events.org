@@ -3268,6 +3268,7 @@ system.file(package = "BiosmokeValidatedEvents")
       Field('url', 'string', comment= 'URL.'),
       Field('summary', 'text', comment= 'Short summary.'),
       Field('abstract', 'text', comment= 'Executive summary or journal abstract.'),
+      Field('protocol_used', 'text', comment= 'The protocol used to identify evidence of an event, for example Johnston2011 for the original method of searching all news, journals, reports and satellite data, or Satellite Only if only satellite data where used.  Optionally leave this blank and it will be inserted on submission to the online master database.  Please also submit information on the protocol to the database manager.'),
       format = '%(source)s %(id)s' 
       )
   
@@ -3407,6 +3408,12 @@ from biosmoke_events.tblevents;
   where site in ('Albany','Bunbury','Busselton','Geraldton','CavershamA',
   'CavershamB','Duncraig','QueensBuilding','QuinnsRocks','SouthLake')
   ")
+  
+  #### add info about what protocol was used
+  dbGetQuery(con, "select * from biomass_smoke_reference limit 1")
+  dbSendQuery(con,
+  "update biomass_smoke_reference set protocol_used = 'Johnston2011'"
+              )
   
   dbDisconnect(con)
 #+end_src
