@@ -15,6 +15,9 @@ In the additional files document, there probably needs to be a description of th
 * setup
 - The idea is to house a complete data and document compendium as an R package
 - Using the template from https://github.com/jhollist/manuscriptPackage
+- the tex goes to vignette/ Rmd is going to inst/doc, then methods.tex merge with one in vignettes?
+- this is confusing
+- to make the package help manual
 
 * threaded doc showing the methods, send methods to Rmd for both an EML document and a Data Note to BMC tex
 ** headers
@@ -52,22 +55,22 @@ In the additional files document, there probably needs to be a description of th
   cleanbib()
   cite_options(citation_format = "pandoc", check.entries=FALSE)
   # to make editable
-  rmarkdown::render("inst/doc/methods.Rmd", "word_document")
+  #rmarkdown::render("inst/doc/methods.Rmd", "word_document")
   
   # to make beautiful 
-  #rmarkdown::render("inst/doc/methods.Rmd", "pdf_document")
+  rmarkdown::render("inst/doc/methods.Rmd", "pdf_document")
   # if tex get out of doc because it breaks the R build
   #file.rename("inst/doc/methods.tex", "vignettes/methods.tex")
   # edit to remove latex header, copy abstract etc and urls
   #file.remove("inst/doc/methods.pdf")
-  dir("vignettes")
-  rmarkdown::render("vignettes/BiosmokeValidatedEvents_AdditionalFile1.Rmd", "word_document")
-  setwd("..")
-  system("pandoc()")
+  #dir("vignettes")
+  #rmarkdown::render("vignettes/BiosmokeValidatedEvents_AdditionalFile1.Rmd", "word_document")
+  #setwd("..")
+  #system("pandoc()")
 #+end_src
 
 #+RESULTS:
-: /home/ivan_hanigan/data/BiosmokeValidatedEvents/inst/doc/methods.pdf
+: /home/ivan_hanigan/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents/inst/doc/methods.pdf
 
 ** perhaps tangle out pure R
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline no
@@ -106,7 +109,7 @@ In the additional files document, there probably needs to be a description of th
   
   ,**Background:** Epidemiological studies of the health effects of
    biomass smoke events (such as bushfires or wood-heater smoke spikes
-   due to inversion layers) have been hampered by the availability of
+   due to inversion layers) have been hampered by the lack of availability of
    datasets that explicitly pertain to these sources. Extreme air
    pollution events may also be caused by dust storms, fossil fuel
    induced smog events or factory fires. This paper presents an open and
@@ -2749,7 +2752,7 @@ run with R studio
 \parttitle{Background} %if any
 Epidemiological studies of the health effects of
 biomass smoke events (such as bushfires or wood-heater smoke spikes due
-to inversion layers) have been hampered by the availability of datasets
+to inversion layers) have been hampered by the lack of availability of datasets
 that explicitly pertain to these sources. Extreme air pollution events
 may also be caused by dust storms, fossil fuel induced smog events or
 factory fires. This paper presents an open and extensible database
@@ -3389,6 +3392,7 @@ from biosmoke_events.tblevents;
   qc <- dbGetQuery(con, "select * from combined_pollutants where date > '2008-12-01'")
   table(qc$date)
   dbGetQuery(con, "select max(date) from combined_pollutants")
+
   # but WA licence precludes sharing without written consent so remove
   wa <- dbGetQuery(ch,
   "SELECT gid, nam, site, region, lat, lon

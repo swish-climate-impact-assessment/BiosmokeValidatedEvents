@@ -46,10 +46,11 @@ Methods}\label{detailed-data-collation-and-validation-methods}
 
 First a `filling-in' procedure was used to improve data completeness. It
 entailed the substitution of the missing daily values with a weighted
-average of the values from the rest of the monitoring stations. The
-pollutant measures from all stations providing data were then averaged
-to provide single, city-wide estimates of the daily levels of the
-pollutants
+average, using the weights of the missing sites 3-month average
+proportional to the network average. The weights are calculated against
+the values from the rest of the monitoring stations. The pollutant
+measures from all stations providing data were then averaged to provide
+single, city-wide estimates of the daily levels of the pollutants
 
 For each city, all days in which PM10 or PM2.5 exceeded the 95th
 percentile were identified over the entire time series. These extreme
@@ -59,7 +60,7 @@ electronic news archives, Internet searches for other reports,
 government and research agencies, satellite imagery and a Dust Storms
 database. Also examined were remotely sensed aerosol optical thickness
 (AOT) data to provide further information about days for which the other
-methods
+methods did not.
 
 Step 1. Source air pollution data. Both time series observations and
 spatial data regarding site locations.
@@ -69,7 +70,9 @@ Step 1.1. NSW data downloaded from an online data server. Site locations
 
 Step 1.2. WA data sent on CD from contacts at the WA Government
 Department, these were hourly data as provided. Cleaned so as only days
-with \textgreater{}75\% of hours are used.
+with \textgreater{}75\% of hours are used. Licence puts restricions on
+our right to provide to a third party. Therefore those observed and
+imputed data are not included, only the events.
 
 Step 1.3. Tasmanian data sent via email from contact at the Department,
 these were daily data.
@@ -80,7 +83,7 @@ database.
 Step 2. Spatial data for cities.
 
 Step 3. Calculate a network average. In cities where data were collected
-from several monitoring sta- tions, the missing daily site-specific PM
+from several monitoring stations, the missing daily site-specific PM
 concentrations were imputed using available data from other proximate
 monitoring sites in the network. The daily city-wide PM concentrations
 were then estimated following the protocol of the Air Pollution and
@@ -131,7 +134,8 @@ Lists the following:
 \item
   Project name: BiosmokeValidatedEvents
 \item
-  \textbf{http://swish-climate-impact-assessment.github.io/BiosmokeValidatedEvents/}
+  Project home page:
+  \emph{http://swish-climate-impact-assessment.github.io/BiosmokeValidatedEvents/}
 \item
   Operating system(s): R package is platform independent. Data Entry
   forms are Microsoft Windows.
@@ -161,7 +165,7 @@ required:
 
 ``The data set(s) supporting the results of this article is(are)
 available in the {[}repository name{]} repository, {[}unique persistent
-identifier and hyperlink to dataset(s).''
+identifier and hyperlink to dataset(s) in \emph{http://} format{]}.''
 
 Where all supporting data are included in the article or additional
 files the following format is required:
@@ -177,7 +181,7 @@ here. A list of all BioMed Central journals that require or encourage
 this section to be included in research articles can be found here.
 
 
-\section{References}
+\noindent \textbf{References}
 
 Atkinson, R.W., Anderson, R.H., Sunyer, J., Ayres, J., Baccini, M.,
 Vonk, J.M., Boumghar, A., Forastiere, F., Forsberg, B., Touloumi, G.,
