@@ -1,10 +1,4 @@
-
-
-
-\section{Findings}
-
-
-\subsection{Description}\label{description}
+\section{Description}\label{description}
 
 The background and purpose of the database or data collection should be
 presented for readers without specialist knowledge in that area. For
@@ -26,7 +20,7 @@ The findings section can be broken into subsections with short
 informative headings. There is no maximum length for this section but we
 encourage authors to be concise.
 
-\subsection{General Protocols}\label{general-protocols}
+\section{General Protocols}\label{general-protocols}
 
 For each location, up to 13 yr (between 1994 and 2007) of daily air
 quality data measured asPMless than 10um (PM10 ) or less than 2.5 um
@@ -41,8 +35,11 @@ in the network. The daily city-wide PM10 and PM2.5 concentrations were
 then estimated following the protocol of the Air Pollution and Health: a
 European Approach studies (Atkinson \emph{et al.} 2001).
 
-\subsection{Detailed Data Collation and Validation
+\section{Detailed Data Collation and Validation
 Methods}\label{detailed-data-collation-and-validation-methods}
+
+\subsection{Step 1: Imputation to fill in gaps in the
+time-series}\label{step-1-imputation-to-fill-in-gaps-in-the-time-series}
 
 First a `filling-in' procedure was used to improve data completeness. It
 entailed the substitution of the missing daily values with a weighted
@@ -62,7 +59,7 @@ database. Also examined were remotely sensed aerosol optical thickness
 (AOT) data to provide further information about days for which the other
 methods did not.
 
-Step 1. Source air pollution data. Both time series observations and
+Step 1.0 Source air pollution data. Both time series observations and
 spatial data regarding site locations.
 
 Step 1.1. NSW data downloaded from an online data server. Site locations
@@ -80,14 +77,18 @@ these were daily data.
 Step 1.4. All data combined and Quality Control checked in the PostGIS
 database.
 
-Step 2. Spatial data for cities.
+\subsection{Step 2. Spatial data for
+cities.}\label{step-2.-spatial-data-for-cities.}
 
-Step 3. Calculate a network average. In cities where data were collected
-from several monitoring stations, the missing daily site-specific PM
-concentrations were imputed using available data from other proximate
-monitoring sites in the network. The daily city-wide PM concentrations
-were then estimated following the protocol of the Air Pollution and
-Health: a European Approach studies. Atkinson et al. (2001).
+\subsection{Step 3. Calculate a network
+average}\label{step-3.-calculate-a-network-average}
+
+In cities where data were collected from several monitoring stations,
+the missing daily site-specific PM concentrations were imputed using
+available data from other proximate monitoring sites in the network. The
+daily city-wide PM concentrations were then estimated following the
+protocol of the Air Pollution and Health: a European Approach studies.
+Atkinson et al. (2001).
 
 Step 3.1. Prepare Data. First it was necessary to find the minimum date
 that the series of continuous observations can be considered to start.
@@ -115,16 +116,19 @@ Step 3.5 Take the average of all sites per day for city wide averages.
 Step 3.6. Fill any missing days with avg of before and after (if this is
 less than 5\% of days).
 
-Step 4. Validate events and identify the causes. Select any events with
-PM10 or PM2.5 greater than 95 percentile. Manually validate events using
-online newspaper archives, government and research agency records,
-satellite imagery and other sources (such as a Dust Storm database).
-Enter the information for each event into the custom built data entry
-forms. For any events with references for multiple types of source,
-assess the liklihood of any single source being the dominant source.
-Double check any remaining 99th percentile dates with no references.
+\subsection{Step 4. Validate events and identify the
+causes}\label{step-4.-validate-events-and-identify-the-causes}
 
-\subsection{Availability and
+Select any events with PM10 or PM2.5 greater than 95 percentile.
+Manually validate events using online newspaper archives, government and
+research agency records, satellite imagery and other sources (such as a
+Dust Storm database). Enter the information for each event into the
+custom built data entry forms. For any events with references for
+multiple types of source, assess the liklihood of any single source
+being the dominant source. Double check any remaining 99th percentile
+dates with no references.
+
+\section{Availability and
 requirements}\label{availability-and-requirements}
 
 Lists the following:
@@ -135,7 +139,7 @@ Lists the following:
   Project name: BiosmokeValidatedEvents
 \item
   Project home page:
-  \emph{http://swish-climate-impact-assessment.github.io/BiosmokeValidatedEvents/}
+  \url{http://swish-climate-impact-assessment.github.io/BiosmokeValidatedEvents/}
 \item
   Operating system(s): R package is platform independent. Data Entry
   forms are Microsoft Windows.
@@ -165,7 +169,7 @@ required:
 
 ``The data set(s) supporting the results of this article is(are)
 available in the {[}repository name{]} repository, {[}unique persistent
-identifier and hyperlink to dataset(s) in \emph{http://} format{]}.''
+identifier and hyperlink to dataset(s) in \url{http://} format{]}.''
 
 Where all supporting data are included in the article or additional
 files the following format is required:
@@ -180,8 +184,7 @@ A list of available scientific research data repositories can be found
 here. A list of all BioMed Central journals that require or encourage
 this section to be included in research articles can be found here.
 
-
-\noindent \textbf{References}
+\textbf{References}
 
 Atkinson, R.W., Anderson, R.H., Sunyer, J., Ayres, J., Baccini, M.,
 Vonk, J.M., Boumghar, A., Forastiere, F., Forsberg, B., Touloumi, G.,
@@ -198,11 +201,12 @@ Johnston, F.H., Hanigan, I.C., Henderson, S.B., Morgan, G.G., Portner,
 T., Williamson, G.J. \& Bowman, D.M.J.S. (2011b). Creating an integrated
 historical record of extreme particulate air pollution events in
 Australian cities from 1994 to 2007. \emph{Journal of the Air \& Waste
-Management Association (1995)}, \textbf{61}, 390--398.
+Management Association}, \textbf{61}, 390--398.
 
 Martin, K.L., Hanigan, I.C., Morgan, G.G., Henderson, S.B. \& Johnston,
 F.H. (2013). Air pollution from bushfires and their association with
 hospital admissions in Sydney, Newcastle and Wollongong, Australia
 1994-2007. \emph{Australian and New Zealand Journal of Public Health},
 \textbf{37}, 238--243.
+
 

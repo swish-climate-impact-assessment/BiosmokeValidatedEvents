@@ -45,7 +45,7 @@ In the additional files document, there probably needs to be a description of th
   ```{r echo = F, eval=F, results="hide"}
 #+end_src
 ** run-able R
-#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval yes :padline no
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline no
   setwd("~/projects/biomass_smoke_and_human_health/BiosmokeValidatedEvents")
   library(rmarkdown)
   library(knitr)
@@ -59,10 +59,13 @@ In the additional files document, there probably needs to be a description of th
   
   # to make beautiful 
   rmarkdown::render("inst/doc/methods.Rmd", "pdf_document")
+  #browseURL("inst/doc/methods.pdf")
+  
+  
   # if tex get out of doc because it breaks the R build
-  #file.rename("inst/doc/methods.tex", "vignettes/methods.tex")
+  file.rename("inst/doc/methods.tex", "vignettes/methods.tex")
   # edit to remove latex header, copy abstract etc and urls
-  #file.remove("inst/doc/methods.pdf")
+  file.remove("inst/doc/methods.pdf")
   #dir("vignettes")
   #rmarkdown::render("vignettes/BiosmokeValidatedEvents_AdditionalFile1.Rmd", "word_document")
   #setwd("..")
@@ -141,17 +144,15 @@ In the additional files document, there probably needs to be a description of th
   
   ,**Conclusions:** The database was created using open source software
     and this makes the prospect for future extensions to the database
-    possible.  THis is because if other scientists notice an ommision or
+    possible.  This is because if other scientists notice an ommision or
     error in these data they can offer an amendment. We believe that
     this will improve the database and benefit the whole biomass smoke
     health research community.
   
 #+end_src
-** findings
+** findings description
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
-  # Findings
-  
-  ## Description
+  # Description
   
   The background and purpose of the database or data collection should
   be presented for readers without specialist knowledge in that area.
@@ -175,7 +176,7 @@ In the additional files document, there probably needs to be a description of th
   informative headings. There is no maximum length for this section but
   we encourage authors to be concise.
   
-  ## General Protocols
+  # General Protocols
   
   For each location, up to 13 yr (between 1994 and 2007) of daily air
   quality data measured asPMless than 10um (PM10 ) or less than 2.5 um
@@ -195,8 +196,10 @@ In the additional files document, there probably needs to be a description of th
 *** step1 source air pollution data and load to a postgres database
 http://www.environment.nsw.gov.au/AQMS/sitesyd.htm
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
-  ## Detailed Data Collation and Validation Methods
-  
+  # Detailed Data Collation and Validation Methods
+
+  ## Step 1: Imputation to fill in gaps in the time-series
+
   First a 'filling-in' procedure was used to improve data
   completeness. It entailed the substitution of the missing daily values
   with a weighted average, using the weights of the missing sites
@@ -216,7 +219,7 @@ http://www.environment.nsw.gov.au/AQMS/sitesyd.htm
   (AOT) data to provide further information about days for which the
   other methods did not.
   
-  Step 1. Source air pollution data. Both time series observations and spatial data regarding site locations. 
+  Step 1.0 Source air pollution data. Both time series observations and spatial data regarding site locations. 
   
   Step 1.1. NSW data downloaded from an online data server.  Site locations (Lat and Long) obtained from website.
   
@@ -233,7 +236,7 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_pollution
 *** step2 source and load spatial data representing the city boundaries
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
 
-Step 2. Spatial data for cities.
+## Step 2. Spatial data for cities.
 
 #+end_src
 **** COMMENT data prep
@@ -242,7 +245,9 @@ see ~/projects/biomass_smoke_and_human_health/biosmoke_spatial
 *** step3 Calculate a network average
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
   
-  Step 3. Calculate a network average. In cities where data were
+  ## Step 3. Calculate a network average
+
+  In cities where data were
   collected from several monitoring stations, the missing daily
   site-specific PM concentrations were imputed using available data from
   other proximate monitoring sites in the network. The daily city-wide
@@ -1609,7 +1614,8 @@ impute_aphea2 <- function(aqdf){
 *** step4
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :eval no :padline yes 
   
-  Step 4. Validate events and identify the causes. Select any events
+  ## Step 4. Validate events and identify the causes
+  Select any events
   with PM10 or PM2.5 greater than 95 percentile. Manually validate
   events using online newspaper archives, government and research agency
   records, satellite imagery and other sources (such as a Dust Storm
@@ -1939,7 +1945,7 @@ I:\Dropbox\projects\1.302 Biomass\data\pollution\summaryValidPollution4events
 ** availability
 #+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :padline no :eval no :padline yes 
   
-  ## Availability and requirements
+  # Availability and requirements
   
   Lists the following:
   
@@ -1967,7 +1973,7 @@ I:\Dropbox\projects\1.302 Biomass\data\pollution\summaryValidPollution4events
 #+end_src
 ** COMMENT bib-code
 #+name:bib
-#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :padline no :eval no
+#+begin_src R :session *R* :tangle inst/doc/methods.Rmd :exports none :padline yes :eval no
 
   **References**
 
@@ -2752,11 +2758,11 @@ run with R studio
 \parttitle{Background} %if any
 Epidemiological studies of the health effects of
 biomass smoke events (such as bushfires or wood-heater smoke spikes due
-to inversion layers) have been hampered by the lack of availability of datasets
-that explicitly pertain to these sources. Extreme air pollution events
-may also be caused by dust storms, fossil fuel induced smog events or
-factory fires. This paper presents an open and extensible database
-developed by the authors to identify historical spikes in PM
+to inversion layers) have been hampered by the lack of availability of
+datasets that explicitly pertain to these sources. Extreme air pollution
+events may also be caused by dust storms, fossil fuel induced smog
+events or factory fires. This paper presents an open and extensible
+database developed by the authors to identify historical spikes in PM
 concentrations and to evaluate whether they were caused by vegetation
 fire smoke or by other possible sources. These methods provide a
 systematic framework for retrospective identification of the air quality
@@ -2766,7 +2772,7 @@ methods, as well as analytical considerations when validating historical
 events using a range of reference types.
 
 \parttitle{Methods} %if any
- Several major urban centers and smaller regional towns
+Several major urban centers and smaller regional towns
 in the Australian states of New South Wales, Western Australia, and
 Tasmania were selected as they are intermittently affected by extreme
 episodes of vegetation fire smoke. Air pollution data was collated and
@@ -2785,7 +2791,7 @@ the pollution-related health effects of these events.
 \parttitle{Conclusions}
 The database was created using open source
 software and this makes the prospect for future extensions to the
-database possible. THis is because if other scientists notice an
+database possible. This is because if other scientists notice an
 ommision or error in these data they can offer an amendment. We believe
 that this will improve the database and benefit the whole biomass smoke
 health research community.
