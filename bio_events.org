@@ -7,6 +7,16 @@
 -----
 
 * TODO-list
+** users sign up
+ssh in 
+postgres
+psql ewedb
+select registration_key from auth_user where first_name = 'Ivan' and last_name = 'Hanigan';
+Pending
+update auth_user set registration_key = '' where first_name = 'Ivan' and last_name = 'Hanigan';
+rm?
+ewedb=# delete from auth_user where first_name = 'ivan';
+DELETE 1
 
 ** TODO grant comments
 Reading the manuscript - you state in section 2.3 a "weighted average" is being used to substitute missing data.  I assume this refers to step 3.2 but there's no mention there of what this weighting is.  Reading this, I would assume it would be some kind if area-weighted or IDW interpolation, but that's not the case is it?
