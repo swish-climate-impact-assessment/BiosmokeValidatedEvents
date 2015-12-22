@@ -1,4 +1,4 @@
-#+TITLE:bio events 
+#+TITLE:bio events index
 #+AUTHOR: Ivan Hanigan
 #+email: ivan.hanigan@anu.edu.au
 #+LaTeX_CLASS: article
@@ -19,15 +19,9 @@ ewedb=# delete from auth_user where first_name = 'ivan';
 DELETE 1
 
 ** TODO grant comments
-Reading the manuscript - you state in section 2.3 a "weighted average" is being used to substitute missing data.  I assume this refers to step 3.2 but there's no mention there of what this weighting is.  Reading this, I would assume it would be some kind if area-weighted or IDW interpolation, but that's not the case is it?
 
-In the additional files document, there probably needs to be a description of the pollution database schema, field names, types, table names etc. for the pollution data because this all seems to be pretty hard coded (including town names etc.) - I guess the intention is for people to take the code and modify it to suit their data, rather than use it as an immediately usable R package?  It would be quite a challenge for an independent researcher to take their monitor data, in whatever form it may be, and run this code on in it to perform the imputation.
 * setup
-- The idea is to house a complete data and document compendium as an R package
-- Using the template from https://github.com/jhollist/manuscriptPackage
-- the tex goes to vignette/ Rmd is going to inst/doc, then methods.tex merge with one in vignettes?
-- this is confusing
-- to make the package help manual
+- The idea is to link a R package with a portable web2py database, online server version and published manuscript 
 
 * threaded doc showing the methods, send methods to Rmd for both an EML document and a Data Note to BMC tex
 ** headers
