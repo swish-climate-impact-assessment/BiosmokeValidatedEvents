@@ -3584,6 +3584,8 @@ from biosmoke_events.tblevents;
                A('%(application)s/forms/manage_references/'%request,
            _href=URL('forms','manage_references'))))}}</li>
     <li>{{=T('To become a user of the data inventory please register in top right corner, then email ivan.hanigan at gmail.com requesting approval.')}}</li>
+    <li>This thing <a href="{{=URL('static', 'BiosmokeValidatedEvents_DataNote.pdf')}}" target="new">To read the manuscript click me</a> </li>
+
 </ol>
     {{elif 'content' in globals():}}
 {{=content}}
