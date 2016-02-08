@@ -1,7 +1,7 @@
-bio_validated_bushfire_events
+Biomass smoke events validation functions
 =============================
 
-This dataset contains validated bushfire smoke events in Australian cities.
+This package contains functions written to assist validation of biomass smoke events in Australian cities.  Such events include bushfires and woodsmoke spikes from woodheater combustion exhaust being trapped by inversion layers.  Other sources of pollution spikes such as dust storms or factory fires are also validated by reference materials.
 
 It comes from the Biomass Smoke and Health Project of:
 David Bowman
