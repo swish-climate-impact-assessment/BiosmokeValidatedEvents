@@ -7,10 +7,12 @@ This work is licensed under Creative Commons - Attribution 4.0. This allows othe
 This package contains functions written to assist validation of biomass smoke events in Australian cities.  Such events include bushfires and woodsmoke spikes from woodheater combustion exhaust being trapped by inversion layers.  Other sources of pollution spikes such as dust storms or factory fires are also validated by reference materials.
 
 It comes from the Biomass Smoke and Health Project of:
-David Bowman
-Fay Johnston
-Geoff Morgan
-and their Research Assistants.
+
+- David Bowman
+- Fay Johnston
+- Geoff Morgan
+- Ivan Hanigan
+- And collaborators/contributers.
 
 ## Protocols used:
 
