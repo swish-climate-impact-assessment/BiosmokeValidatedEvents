@@ -2,6 +2,7 @@ Biomass smoke events validation functions
 =============================
 
 License: CC BY 4.0
+
 This work is licensed under Creative Commons - Attribution 4.0. This allows others to copy, distribute and create derivative works provided that they credit the original source.
 
 This package contains functions written to assist validation of biomass smoke events in Australian cities.  Such events include bushfires and woodsmoke spikes from woodheater combustion exhaust being trapped by inversion layers.  Other sources of pollution spikes such as dust storms or factory fires are also validated by reference materials.
