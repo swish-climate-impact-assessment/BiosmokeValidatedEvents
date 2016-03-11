@@ -1,12 +1,11 @@
 # NSW air quality data (received from EPA) -----
-# The lines with "#" in front are for Pernilla's analysis
 library (dplyr); library(openair);library(reshape2);library(stringr);library(tidyr); library(readr);library(lubridate)
 
 #importing the data (using the openair import function in combination with tb_df)
-nsw9498 <-  tbl_df (import ("OEH (1994-1998)_AllSites_1hrlyData.csv"))
-nsw9903 <-  tbl_df (import ("OEH (1999-2003)__AllSites_1hrlyData.csv"))
-nsw0408 <-  tbl_df (import ("OEH (2004-2008)__AllSites_1hrlyData.csv"))
-nsw0913 <-  tbl_df(import ("OEH (2009-2013)__AllSites_1hrlyData.csv"))
+nsw9498 <-  tbl_df (import ("/Users/Farhad/Desktop/UTAS desktop/UTAS/bushfire and health project/Analysis/Airquality EPA/csv raw files/NSW/airquality/OEH (1994-1998)_AllSites_1hrlyData.csv"))
+nsw9903 <-  tbl_df (import ("/Users/Farhad/Desktop/UTAS desktop/UTAS/bushfire and health project/Analysis/Airquality EPA/csv raw files/NSW/airquality/OEH (1999-2003)__AllSites_1hrlyData.csv"))
+nsw0408 <-  tbl_df (import ("/Users/Farhad/Desktop/UTAS desktop/UTAS/bushfire and health project/Analysis/Airquality EPA/csv raw files/NSW/airquality/OEH (2004-2008)__AllSites_1hrlyData.csv"))
+nsw0913 <-  tbl_df(import ("/Users/Farhad/Desktop/UTAS desktop/UTAS/bushfire and health project/Analysis/Airquality EPA/csv raw files/NSW/airquality/OEH (2009-2013)__AllSites_1hrlyData.csv"))
 
 # removing the units
 names(nsw9498)[2:ncol(nsw9498)] <- word(colnames(nsw9498)[2:ncol(nsw9498)], start = 1, end = -2)
@@ -36,6 +35,9 @@ nswaq0413 <- nswaq0413[,colSums(is.na(nswaq0413))< nrow(nswaq0413)]
 # keeping the variables of interest (pm2.5, pm10, o3, no, co, humidity, and temperature)
 nswaq0413 <- nswaq0413 %>%
   select (date, contains ("pm2.5"), contains("pm10"), contains ("ozone"), contains ("hum"), contains ("tem"), contains ("no"), contains ("co"), contains ("so2"))
+
+# replacing all negative values with NA
+nswaq0413 [nswaq0413 < 0] <- NA
 
 # checking the class of each column
 lapply (nswaq0413, class)
@@ -116,7 +118,7 @@ sites <- nswaq0413.daily.sydney %>%
   summarise (total.count = n(), na.pm2.5 = sum(is.na(pm2.5)), na.pm10 = sum(is.na(pm10)), na.humidity = sum(is.na(humidity)), na.o3 = sum(is.na(o3)), na.o3max = sum(is.na(o3max)), na.temp = sum(is.na(temp)), na.co = sum(is.na(co)), na.no = sum(is.na(no)), na.no2 = sum(is.na(no2)), na.nox = sum(is.na(nox)), na.so2 = sum(is.na(so2))) %>%
   mutate (pm2.5.na.percent = na.pm2.5/total.count, pm10.na.percent = na.pm10/total.count, humidity.na.percent = na.humidity/total.count, o3.na.percent = na.o3/total.count,o3max.na.percent = na.o3max/total.count, temp.na.percent = na.temp/total.count, co.na.percent = na.co/total.count, no.na.percent = na.co/total.count, no2.na.percent = na.no2/total.count, nox.na.percent = na.nox/total.count, so2.na.percent = na.so2/total.count)
 
-pm2.5.sites <- sites %>% filter (pm2.5.na.percent <= 0.25) %>% select (site)
+pm2.5.sites <- data.frame(site=c("earlwood","liverpool","richmond"))
 pm10.sites <- sites %>% filter (pm10.na.percent <= 0.25) %>% select (site)  
 o3.sites <- sites %>% filter (o3.na.percent <= 0.25) %>% select (site)
 o3max.sites <- sites %>% filter (o3max.na.percent <= 0.25) %>% select (site)
@@ -151,10 +153,11 @@ data <- data %>% mutate (month = month(date), year = year(date)) %>%
 
 data.siteaverage <- data %>% group_by(site,year,season) %>% summarise(site.mean.pm2.5 = mean(pm2.5, na.rm =TRUE))
 
+data.othersitesaverage2 <- data %>% filter (site != "earlwood") %>% group_by(year,season) %>% summarise(othersites.mean.pm2.5 = mean(pm2.5, na.rm =TRUE)) %>% mutate(site="earlwood")
 data.othersitesaverage3 <- data %>% filter (site != "liverpool") %>% group_by(year,season) %>% summarise(othersites.mean.pm2.5 = mean(pm2.5, na.rm =TRUE)) %>% mutate(site="liverpool")
 data.othersitesaverage4 <- data %>% filter (site != "richmond") %>% group_by(year,season) %>% summarise(othersites.mean.pm2.5 = mean(pm2.5, na.rm =TRUE)) %>% mutate(site="richmond")
 
-data.othersitesaverage <-  rbind_list(data.othersitesaverage3,data.othersitesaverage4)
+data.othersitesaverage <-  rbind_list(data.othersitesaverage2,data.othersitesaverage3,data.othersitesaverage4)
 
 data.siteandotheraverage <- full_join(data.siteaverage,data.othersitesaverage)
 data.siteandotheraverage <- data.siteandotheraverage %>% mutate (factor = site.mean.pm2.5/othersites.mean.pm2.5)
@@ -204,6 +207,11 @@ nswaq0413.daily.sydney <- left_join (nswaq0413.daily.sydney, nswaq0413.so2.daily
 
 # remove unnecessary data
 remove (temp.sites, sites, so2.sites, pm10.sites, pm2.5.sites, o3.sites,humidity.sites, nswaq0413.humidity.daily.sydney, nswaq0413.o3.daily.sydney,nswaq0413.o3max.daily.sydney, nswaq0413.pm10.daily.sydney,nswaq0413.so2.daily.sydney, nswaq0413.pm2.5.daily.sydney, nswaq0413.temp.daily.sydney,nswaq0413.co.daily.sydney, nswaq0413.no.daily.sydney, nswaq0413.no2.daily.sydney, nswaq0413.nox.daily.sydney , co.sites, no.sites, no2.sites, nox.sites)
+
+# replace NA with the mean of the values from the previous and next days
+nswaq0413.daily.sydney <- nswaq0413.daily.sydney %>% arrange(date) %>%
+  mutate(pm2.5_lag= lag(pm2.5), pm2.5_lead=lead(pm2.5)) %>%
+  mutate(pm2.5= ifelse(is.na(pm2.5), 0.5*(pm2.5_lag+pm2.5_lead), pm2.5))
 
 # rounding to one decimal point
 nswaq0413.daily.sydney <- nswaq0413.daily.sydney %>% mutate (pm2.5=round (pm2.5, digits=1),pm10=round (pm10, digits=1),o3=round (o3, digits=1),o3max=round (o3max, digits=1),humidity=round (humidity, digits=1),temp=round (temp, digits=1),co=round (co, digits=1),no=round (no, digits=1), no2=round (no2, digits=1), nox =round (nox, digits=1), so2 =round (so2, digits=1))
