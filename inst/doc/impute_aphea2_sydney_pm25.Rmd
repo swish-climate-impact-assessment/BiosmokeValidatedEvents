@@ -1,3 +1,12 @@
+
+---
+title: Imputing PM2.5 in Sydney using the APHEA2 protocol
+author: Farhad Salimie and Ivan Hanigan
+---
+
+Following completeness criteria and imputation procedure as per Touloumi, G., Samoli, E., Le Tetre, A., Atkinson, R., & Schwartz, J. (20001). Annex 1 - APHEA2 Methodology. Air Pollution and Health: a European Information System (APHEIS). Retrieved from http://www.invs.sante.fr/publications/2001/apheis/
+
+```{r}
 # NSW air quality data (received from EPA) -----
 library (dplyr); library(openair);library(reshape2);library(stringr);library(tidyr); library(readr);library(lubridate)
 
@@ -218,3 +227,6 @@ nswaq0413.daily.sydney <- nswaq0413.daily.sydney %>% mutate (pm2.5=round (pm2.5,
 
 # saving the file
 write_csv (nswaq0413.daily.sydney, path ="nswaq9413.daily.sydney.csv")
+
+
+```
