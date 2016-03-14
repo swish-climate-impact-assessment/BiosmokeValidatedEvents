@@ -1,4 +1,3 @@
-
 ---
 title: Imputing PM2.5 in Sydney using the APHEA2 protocol
 author: Farhad Salimie and Ivan Hanigan
@@ -10,21 +9,49 @@ Following completeness criteria and imputation procedure as per Touloumi, G., Sa
 # NSW air quality data (received from EPA) -----
 library (dplyr); library(openair);library(reshape2);library(stringr);library(tidyr); library(readr);library(lubridate)
 
+indir  <- "~/projects_environment_general_local/Air_Pollution_Monitoring_Stations_NSW/OEH_monitor_1995_2014_hrly"
+setwd(indir)
+dir("data_provided")
+
+
+
 #importing the data (using the openair import function in combination with tb_df)
-nsw9498 <-  tbl_df (import ("/Users/Farhad/Desktop/UTAS desktop/UTAS/bushfire and health project/Analysis/Airquality EPA/csv raw files/NSW/airquality/OEH (1994-1998)_AllSites_1hrlyData.csv"))
-nsw9903 <-  tbl_df (import ("/Users/Farhad/Desktop/UTAS desktop/UTAS/bushfire and health project/Analysis/Airquality EPA/csv raw files/NSW/airquality/OEH (1999-2003)__AllSites_1hrlyData.csv"))
-nsw0408 <-  tbl_df (import ("/Users/Farhad/Desktop/UTAS desktop/UTAS/bushfire and health project/Analysis/Airquality EPA/csv raw files/NSW/airquality/OEH (2004-2008)__AllSites_1hrlyData.csv"))
-nsw0913 <-  tbl_df(import ("/Users/Farhad/Desktop/UTAS desktop/UTAS/bushfire and health project/Analysis/Airquality EPA/csv raw files/NSW/airquality/OEH (2009-2013)__AllSites_1hrlyData.csv"))
+nsw9498 <-  tbl_df (import (file.path("data_provided", "/OEH (1994-1998)_AllSites_1hrlyData.csv"),
+                                      header.at = 3, data.at = 4, date = "Date",
+                                      date.format = "%d/%m/%Y"
+))
+nsw9903 <-  tbl_df (import (file.path("data_provided", "/OEH (1999-2003)__AllSites_1hrlyData.csv"),
+                                      header.at = 3, data.at = 4, date = "Date",
+                                      date.format = "%d/%m/%Y"
+))
+nsw0408 <-  tbl_df (import (file.path("data_provided", "/OEH (2004-2008)__AllSites_1hrlyData.csv"),
+                                      header.at = 3, data.at = 4, date = "Date",
+                                      date.format = "%d/%m/%Y"
+))
+nsw0913 <-  tbl_df (import (file.path("data_provided", "/OEH (2009-2013)__AllSites_1hrlyData.csv"),
+                                      header.at = 3, data.at = 4, date = "Date",
+                                      date.format = "%d/%m/%Y"
+))
+
+#### TODO NOT RUN due to errors
 
 # removing the units
-names(nsw9498)[2:ncol(nsw9498)] <- word(colnames(nsw9498)[2:ncol(nsw9498)], start = 1, end = -2)
-names(nsw9903)[2:ncol(nsw9903)] <- word(colnames(nsw9903)[2:ncol(nsw9903)], start = 1, end = -2)
-names(nsw0408)[2:ncol(nsw0408)] <- word(colnames(nsw0408)[2:ncol(nsw0408)], start = 1, end = -2)
-names(nsw0913)[2:ncol(nsw0913)] <- word(colnames(nsw0913)[2:ncol(nsw0913)], start = 1, end = -2)
+## names(nsw9498)[2:ncol(nsw9498)] <-
+#word(colnames(nsw9498)[2:ncol(nsw9498)], start = 1, end = -2)
+## Error in stri_sub(string, from = start, to = end) : 
+##   argument `to` should be an integer vector (or an object coercible to)
 
-# importing sites locations data
-nsw.locations <- read_csv ("/Users/Farhad/Desktop/UTAS desktop/UTAS/bushfire and health project/Analysis/Airquality EPA/csv raw files/NSW/other/locations.csv")
+## names(nsw9903)[2:ncol(nsw9903)] <- word(colnames(nsw9903)[2:ncol(nsw9903)], start = 1, end = -2)
+## names(nsw0408)[2:ncol(nsw0408)] <- word(colnames(nsw0408)[2:ncol(nsw0408)], start = 1, end = -2)
+## names(nsw0913)[2:ncol(nsw0913)] <- word(colnames(nsw0913)[2:ncol(nsw0913)], start = 1, end = -2)
 
+## # importing sites locations data
+## nsw.locations <- read_csv ("/Users/Farhad/Desktop/UTAS desktop/UTAS/bushfire and health project/Analysis/Airquality EPA/csv raw files/NSW/other/locations.csv")
+
+# TODO NB is this locations file from the XLS file "Copy of OEH AQMN site list 2014.xls"?
+# which sheet?
+
+#### GO here
 # binding them together
 nswaq0413 <- bind_rows (nsw9498,nsw9903,nsw0408, nsw0913)
 
@@ -37,6 +64,11 @@ names(nswaq0413) <- tolower(colnames(nswaq0413))
 # converting all columns but date to "double"
 cols = seq(from=2, to=ncol(nswaq0413));    
 nswaq0413[,cols] = apply(nswaq0413[,cols], 2, function(x) as.double(as.character(x)))
+
+#### TODO check the cause of this warning
+## Warning message:
+## In FUN(newX[, i], ...) : NAs introduced by coercion
+
 
 # removing the columns which all values are NA's
 nswaq0413 <- nswaq0413[,colSums(is.na(nswaq0413))< nrow(nswaq0413)]

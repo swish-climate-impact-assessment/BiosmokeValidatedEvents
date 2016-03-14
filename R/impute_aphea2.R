@@ -88,7 +88,7 @@ impute_aphea2 <- function(aqdf){
   # getting the not NA values and binding them to the imputed ones
   df.aq.long.notna <- df.aq.long %>%
     filter (!is.na(concentration))
-  df.aq.imputed.long <- rbind_list(df.aq.imputed.isna,df.aq.long.notna)
+  df.aq.imputed.long <- bind_rows(df.aq.imputed.isna,df.aq.long.notna)
 
   # constructing the final dataframe
   df.aq.imputed <- spread(df.aq.imputed.long, key = pollutant, value = concentration)
