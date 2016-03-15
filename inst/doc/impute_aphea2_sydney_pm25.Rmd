@@ -86,8 +86,19 @@ lapply (nswaq0413, class)
 # calculating the daily average (at least 75% of data needed for each day otherwise NA)
 # WS and WD data should not be averaged using this approach (the columns heading needs to change to ws and wd firstly)
 nswaq0413.daily.avg <- timeAverage (nswaq0413, avg.time = "day", data.thresh = 75, interval = "hour")
+# Error: Unknown name
+traceback()
+## 5: stop("Unknown name", call. = FALSE)
+## 4: `$.tbl_df`(mydata, "ws")
+## 3: mydata$ws
+## 2: checkPrep(mydata, vars, type = "default", remove.calm = FALSE, 
+##        strip.white = FALSE)
+## 1: timeAverage(nswaq0413, avg.time = "day", data.thresh = 75, interval = "hour")
+
 nswaq0413.daily.1hrmax <- timeAverage (nswaq0413, avg.time = "day", statistic = "max", data.thresh = 75, interval = "hour") %>%
   select ( contains("date"), contains ("no2"), contains ("ozone"))
+# Error: Unknown name
+
 colnames <- colnames (nswaq0413.daily.1hrmax)
 colnames <- gsub ("no2","no2max",colnames)
 colnames <- gsub ("ozone","o3max",colnames) 
