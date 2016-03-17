@@ -16,42 +16,20 @@ dir("data_provided")
 
 
 #importing the data (using the openair import function in combination with tb_df)
-nsw9498 <-  tbl_df (import (file.path("data_provided", "/OEH (1994-1998)_AllSites_1hrlyData.csv"),
-                                      header.at = 3, data.at = 4, date = "Date",
-                                      date.format = "%d/%m/%Y"
-))
-nsw9903 <-  tbl_df (import (file.path("data_provided", "/OEH (1999-2003)__AllSites_1hrlyData.csv"),
-                                      header.at = 3, data.at = 4, date = "Date",
-                                      date.format = "%d/%m/%Y"
-))
-nsw0408 <-  tbl_df (import (file.path("data_provided", "/OEH (2004-2008)__AllSites_1hrlyData.csv"),
-                                      header.at = 3, data.at = 4, date = "Date",
-                                      date.format = "%d/%m/%Y"
-))
-nsw0913 <-  tbl_df (import (file.path("data_provided", "/OEH (2009-2013)__AllSites_1hrlyData.csv"),
-                                      header.at = 3, data.at = 4, date = "Date",
-                                      date.format = "%d/%m/%Y"
-))
-
-#### TODO NOT RUN due to errors
+nsw9498 <-  tbl_df (import (file.path("data_provided", "/OEH (1994-1998)_AllSites_1hrlyData.csv")))
+nsw9903 <-  tbl_df (import (file.path("data_provided", "/OEH (1999-2003)__AllSites_1hrlyData.csv")))
+nsw0408 <-  tbl_df (import (file.path("data_provided", "/OEH (2004-2008)__AllSites_1hrlyData.csv")))
+nsw0913 <-  tbl_df (import (file.path("data_provided", "/OEH (2009-2013)__AllSites_1hrlyData.csv")))
 
 # removing the units
-## names(nsw9498)[2:ncol(nsw9498)] <-
-#word(colnames(nsw9498)[2:ncol(nsw9498)], start = 1, end = -2)
-## Error in stri_sub(string, from = start, to = end) : 
-##   argument `to` should be an integer vector (or an object coercible to)
+names(nsw9498)[2:ncol(nsw9498)] <- word(colnames(nsw9498)[2:ncol(nsw9498)], start = 1, end = -2)
+names(nsw9903)[2:ncol(nsw9903)] <- word(colnames(nsw9903)[2:ncol(nsw9903)], start = 1, end = -2)
+names(nsw0408)[2:ncol(nsw0408)] <- word(colnames(nsw0408)[2:ncol(nsw0408)], start = 1, end = -2)
+names(nsw0913)[2:ncol(nsw0913)] <- word(colnames(nsw0913)[2:ncol(nsw0913)], start = 1, end = -2)
 
-## names(nsw9903)[2:ncol(nsw9903)] <- word(colnames(nsw9903)[2:ncol(nsw9903)], start = 1, end = -2)
-## names(nsw0408)[2:ncol(nsw0408)] <- word(colnames(nsw0408)[2:ncol(nsw0408)], start = 1, end = -2)
-## names(nsw0913)[2:ncol(nsw0913)] <- word(colnames(nsw0913)[2:ncol(nsw0913)], start = 1, end = -2)
+# importing sites locations data
+nsw.locations <- read_csv(file.path("data_provided", "/locations.csv"))
 
-## # importing sites locations data
-## nsw.locations <- read_csv ("/Users/Farhad/Desktop/UTAS desktop/UTAS/bushfire and health project/Analysis/Airquality EPA/csv raw files/NSW/other/locations.csv")
-
-# TODO NB is this locations file from the XLS file "Copy of OEH AQMN site list 2014.xls"?
-# which sheet?
-
-#### GO here
 # binding them together
 nswaq0413 <- bind_rows (nsw9498,nsw9903,nsw0408, nsw0913)
 
@@ -65,17 +43,15 @@ names(nswaq0413) <- tolower(colnames(nswaq0413))
 cols = seq(from=2, to=ncol(nswaq0413));    
 nswaq0413[,cols] = apply(nswaq0413[,cols], 2, function(x) as.double(as.character(x)))
 
-#### TODO check the cause of this warning
-## Warning message:
-## In FUN(newX[, i], ...) : NAs introduced by coercion
-
-
 # removing the columns which all values are NA's
 nswaq0413 <- nswaq0413[,colSums(is.na(nswaq0413))< nrow(nswaq0413)]
 
 # keeping the variables of interest (pm2.5, pm10, o3, no, co, humidity, and temperature)
 nswaq0413 <- nswaq0413 %>%
   select (date, contains ("pm2.5"), contains("pm10"), contains ("ozone"), contains ("hum"), contains ("tem"), contains ("no"), contains ("co"), contains ("so2"))
+
+#### TODO check if we might alternatively set these to zero, or some
+#### code to allow sens test?
 
 # replacing all negative values with NA
 nswaq0413 [nswaq0413 < 0] <- NA
@@ -94,6 +70,7 @@ traceback()
 ## 2: checkPrep(mydata, vars, type = "default", remove.calm = FALSE, 
 ##        strip.white = FALSE)
 ## 1: timeAverage(nswaq0413, avg.time = "day", data.thresh = 75, interval = "hour")
+
 
 nswaq0413.daily.1hrmax <- timeAverage (nswaq0413, avg.time = "day", statistic = "max", data.thresh = 75, interval = "hour") %>%
   select ( contains("date"), contains ("no2"), contains ("ozone"))
