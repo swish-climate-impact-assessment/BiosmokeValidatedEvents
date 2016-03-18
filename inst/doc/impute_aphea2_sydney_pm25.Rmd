@@ -1,9 +1,0 @@
----
-title: Imputing PM2.5 in Sydney using the APHEA2 protocol
-author: Farhad Salimie and Ivan Hanigan
----
-
-Following completeness criteria and imputation procedure as per Touloumi, G., Samoli, E., Le Tetre, A., Atkinson, R., & Schwartz, J. (20001). Annex 1 - APHEA2 Methodology. Air Pollution and Health: a European Information System (APHEIS). Retrieved from http://www.invs.sante.fr/publications/2001/apheis/
-
-```{r}
-```
